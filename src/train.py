@@ -6,6 +6,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Lambda
 from task_generator import TaskGenerator
+import numpy as np
 
 
 dim = 9
@@ -40,14 +41,33 @@ query_prediction_layer = Lambda(function=fsl_functions.softmax_classification)([
 
 
 #models
+model_keep_first_tensor = keras.Model(inputs=query_set_inp_shape_layer, outputs=query_set_keep_first_tensor_layer)
+
+model_support_query_embeddings = keras.Model(inputs=[support_set_inp_shape_layer, query_set_inp_shape_layer], outputs=[support_set_embeddings_layer, query_set_embedding_layer])
+model_prototypes = keras.Model(inputs = model_support_query_embeddings.output[0], outputs=prototypes_layer)
+# model_pred
+
+
+
 model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
 model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.0001), metrics=['categorical_accuracy'])#, run_eagerly=True)
 
 ex = '1'
 N = 5
-k = 5
+k = 3
+
+
 train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=10000)
 
-model.fit(train_loader, epochs=25,   shuffle=False)
+[x,y], label = train_loader[0]
+
+check_keep_first_tensor = model_keep_first_tensor.predict(y)
+check_support_query_embeddings = model_support_query_embeddings.predict([x, y])
+check_prototypes = model_prototypes.predict(check_support_query_embeddings[0])
+check_prototypes_manual = np.all(check_prototypes == tf.reduce_sum(check_support_query_embeddings[0],axis=1)/k)
+
+print("END")
+
+#model.fit(train_loader, epochs=25,   shuffle=False)
 
 # model1.save('saved_models/model1.h5')
