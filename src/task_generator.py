@@ -87,7 +87,7 @@ class TaskGenerator(utils.Sequence):
         for i,gest_key_list in enumerate(key_list):
             support_set[i] = np.array([random.choice(self.data[key]) for key in gest_key_list])
 
-        query_image = np.array([random.choice(self.data[query_key])])*np.ones(self.way)[:, np.newaxis, np.newaxis, np.newaxis]
+        query_image = np.array([random.choice(self.data[query_key])])
         label = utils.to_categorical(query_gesture_index, num_classes=self.way)
         #printKeys(key_list)
         return support_set, query_image, label
@@ -113,7 +113,7 @@ class TaskGenerator(utils.Sequence):
         for i, gest_key_list in enumerate(key_list):
             support_set[i] = np.array([random.choice(self.data[key]) for key in gest_key_list])
 
-        query_image = np.array([random.choice(self.data[query_key])])*np.ones(self.way)[:, np.newaxis, np.newaxis, np.newaxis]
+        query_image = np.array([random.choice(self.data[query_key])])
         label = utils.to_categorical([query_gesture_index], num_classes=self.way)
 
         # printKeys(key_list)
