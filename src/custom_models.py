@@ -51,6 +51,106 @@ def improvedAtzoriNet(input_shape=(12,40,1),name='ImprovedAtzoriNet'):
         ])
   return model
 
+"""
+Inspired by Atzori's implementation for Ninapro DB1 data.
+Input: (15,10,1) sEMG recording
+Output: (N,1) vector with prediction for each of N classes
+
+No Dropout Layer Used
+"""
+def AtzoriNetDB1(N = 53, input_shape = (15,10,1)):
+    model = keras.Sequential(
+        name = 'AtzoriNetDB1',
+        layers = [
+            #Input
+            layers.Input(shape=input_shape),
+
+            #Layer 1: Padding (0,4) -> Conv2D [32 x (1,10)] -> ReLU
+                # Input:  (15,10,1)
+                # Output: (15,9,32)
+            layers.ZeroPadding2D(padding=(0,4)),
+            layers.Conv2D(filters=32, kernel_size=(1,10), padding='valid', activation='relu'),
+
+            #Layer 2: Padding (1,1) -> Conv2D [32 x (3,3)] -> ReLU -> AvgPooling(3,3)
+                # Input:  (15,9,32)
+                # Output: (5,3,32)
+
+            layers.Conv2D(filters=32, kernel_size=(3,3), padding='same', activation='relu'),
+            layers.AveragePooling2D(pool_size=(3,3)),
+
+            #Layer 3: Padding (2,2) -> Conv2D [64 x (5,5)] -> ReLU -> AvgPooling(3,3)
+                # Input:  (5,3,32)
+                # Output: (1,1,64)
+            # layers.ZeroPadding2D(padding=(2,2)),
+            layers.Conv2D(filters=64, kernel_size=(5,5), padding='same', activation='relu'),
+            layers.AveragePooling2D(pool_size=(3,3)),
+
+            #Layer 4: Padding (2,0) -> Conv2D [64 x (5,1)] -> ReLU
+            # The Output is a vector of length 64 corresponding to the input image
+                # Input:  (1,1,64)
+                # Output: (1,1,64)
+            # layers.ZeroPadding2D(padding=(2,0)),
+            layers.Conv2D(filters=64, kernel_size=(5,1), padding='same', activation='relu'),
+
+             #Layer 5: Conv2D [Nx(1,1)] -> Softmax -> Flatten
+            layers.Conv2D(filters=N, kernel_size=(1,1), padding='valid', activation='softmax'),
+            layers.Flatten()
+        ]
+    )
+
+    return model
+
+
+"""
+Inspired by Atzori's implementation for Ninapro DB2 data.
+Input: (30,12,1) sEMG recording
+Output: (N,1) vector with prediction for each of N classes
+
+No Dropout Layer Used
+"""
+def AtzoriNetDB2(N = 49, input_shape = (30,12,1)):
+    model = keras.Sequential(
+        name = 'AtzoriNetDB2',
+        layers = [
+            #Input
+            layers.Input(shape=input_shape),
+
+            #Layer 1: Padding (0,5) -> Conv2D [32 x (1,12)] -> ReLU
+                # Input:  (30,12,1)
+                # Output: (30,11,32)
+            layers.ZeroPadding2D(padding=(0,5)),
+            layers.Conv2D(filters=32, kernel_size=(1,12), padding='valid', activation='relu'),
+
+            #Layer 2: Padding (1,1) -> Conv2D [32 x (3,3)] -> ReLU -> AvgPooling(3,3)
+                # Input:  (30,11,32)
+                # Output: (10,3,32)
+            layers.ZeroPadding2D(padding=(1,1)),
+            layers.Conv2D(filters=32, kernel_size=(3,3), padding='valid', activation='relu'),
+            layers.AveragePooling2D(pool_size=(3,3)),
+
+            #Layer 3: Padding (2,2) -> Conv2D [64 x (5,5)] -> ReLU -> AvgPooling(3,3)
+                # Input:  (10,3,32)
+                # Output: (3,1,64)
+            layers.ZeroPadding2D(padding=(2,2)),
+            layers.Conv2D(filters=64, kernel_size=(5,5), padding='valid', activation='relu'),
+            layers.AveragePooling2D(pool_size=(3,3)),
+
+            #Layer 4: Padding (2,0) -> Conv2D [64 x (9,1)] -> ReLU
+            # The Output is a vector of length 64 corresponding to the input image
+                # Input:  (3,1,64)
+                # Output: (1,1,64)
+            layers.ZeroPadding2D(padding=(3,0)),
+            layers.Conv2D(filters=64, kernel_size=(9,1), padding='valid', activation='relu'),
+
+             #Layer 5: Conv2D [Nx(1,1)] -> Softmax -> Flatten
+            layers.Conv2D(filters=N, kernel_size=(1,1), padding='valid', activation='softmax'),
+            layers.Flatten()
+        ]
+    )
+
+    return model
+
+
 
 def test_more_dims_cnn():
     convnet = keras.Sequential(name='mymodel')
