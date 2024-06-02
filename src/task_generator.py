@@ -84,6 +84,12 @@ class TaskGenerator(utils.Sequence):
 
         query_key = key_list[query_gesture_index].pop()
 
+        #Nxk support set is made up of N sets of k images from each category
+        #gest_key_list contains all the keys for the i-th category
+        #i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
+        #  ['s1g5r2', 's3g5r3', 's12g5r4']
+        # Each key corresponds to a Lx12x40x1 segmented array (in segments of 40 samples) where L is the number of segments for each movement (could vary depending o movement length)
+        # For each movement one segment is chosen randomly
         for i,gest_key_list in enumerate(key_list):
             support_set[i] = np.array([random.choice(self.data[key]) for key in gest_key_list])
 
