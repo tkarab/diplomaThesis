@@ -1,6 +1,9 @@
 import tensorflow as tf
 
 
+"""
+retu
+"""
 def produce_prototype(x):
     return tf.reduce_mean(x,axis=1)
 
