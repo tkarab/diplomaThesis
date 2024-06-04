@@ -1,6 +1,9 @@
 import tensorflow as tf
 
-# @title Prototype functions
+
+"""
+retu
+"""
 def produce_prototype(x):
     return tf.reduce_mean(x,axis=1)
 
@@ -8,7 +11,11 @@ def reshape_query(x):
     return tf.reshape(x,[-1,tf.shape(x)[-1]])
 
 def keep_first_tensor(x):
-    return tf.expand_dims(x[0],axis=0)
+    print_tensor_shape(x)
+    x = tf.expand_dims(x[0],axis=0)
+    print_tensor_shape(x)
+
+    return x
 
 def get_sum_of_squares(x):
     return tf.reduce_sum(x**2,axis=1,keepdims=True)
@@ -40,5 +47,8 @@ def get_fsl_set(x,N,k):
 
 def print_tensor(tensor, precision=4):
     tf.print(tf.strings.as_string(tensor,precision=precision))
+
+def print_tensor_shape(tensor):
+    tf.print("shape:",tensor.shape)
 
 
