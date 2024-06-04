@@ -16,8 +16,7 @@ k = 3
 inp_shape = (12,40,1)
 cnn_backbone = custom_models.improvedAtzoriNet(inp_shape)#simplest_conv_net_1_layer(input_shape = inp_shape, feature_vector_size=12)
 
-# inp = layers.Input(shape=inp_shape)
-# model_4d = keras.Model(inputs=inp, outputs=cnn_backbone(inp))
+
 model_timeDist = layers.TimeDistributed(cnn_backbone)
 
 #input shape tuple
@@ -26,15 +25,14 @@ inp_shape_5d = (None,) + inp_shape
 #Layers
 support_set_inp_shape_layer = layers.Input(inp_shape_5d)
 query_set_inp_shape_layer = layers.Input(inp_shape)
-query_set_keep_first_tensor_layer = Lambda(function=fsl_functions.keep_first_tensor)(query_set_inp_shape_layer)
 
 support_set_embeddings_layer = model_timeDist(support_set_inp_shape_layer)
-# query_set_embedding_layer = cnn_backbone(query_set_keep_first_tensor_layer)
+
 query_set_embedding_layer = cnn_backbone(query_set_inp_shape_layer)
 
 prototypes_layer = Lambda(function=fsl_functions.produce_prototype)(support_set_embeddings_layer)
-# query_embedding_reshaped_layer = Lambda(function=fsl_functions.keep_first_tensor)(query_set_embedding_layer)
-#
+
+
 # query_distances_layer = Lambda(function=fsl_functions.euc_dist)([prototypes_layer, query_set_embedding_layer])
 
 query_prediction_layer = Lambda(function=fsl_functions.softmax_classification)([prototypes_layer, query_set_embedding_layer])
@@ -69,7 +67,6 @@ ex = '1'
 N = 5
 k = 3
 
-
 train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=10000)
 
 [x,y], label = train_loader[0]
@@ -83,4 +80,6 @@ print("END")
 
 #model.fit(train_loader, epochs=25,   shuffle=False)
 
+model.fit(train_loader, epochs=25,   shuffle=False)
+print('END')
 # model1.save('saved_models/model1.h5')
