@@ -6,15 +6,36 @@ import os
 import helper_functions
 from proprocessing_functions import *
 
+"""
+ *DESCRIPTION*
+    This code is aimed to pick the separated data from their location and apply the preprocessing
+    steps found in 'proprocessing_functions.py', depending on the needs of each Database.
+    The way it's written it initially checks whether there already is a file containing preprocessed 
+    data of that database within the directory, and if so, it checks whether some keys haven't been
+    processed yet. That way the preprocessing process (which is time consuming) could be broken down into
+    sessions.
+
+"""
+
 
 filepath = os.path.join(constants.SEPARATED_DATA_PATH, 'db2.npz')
-processedPath = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')
+processed_data_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_processed.npz')
+segments_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_segments.npz')
 
 data_sep = np.load(filepath)
-data_proc = np.load(processedPath)
-# subjects,gestures,reps = helper_functions.get_unique_sgr(data_sep.files)
+try:
+    data_proc = np.load(processed_data_path)
+    data_seg = np.load(segments_path)
+    keylist = list(set(data_sep.files) - set(data_proc.files))
+    old_segments = dict(data_seg)
+    old_processed_data = dict(data_proc)
 
-keylist = list(set(data_sep.files) - set(data_proc.files))
+except FileNotFoundError:
+    keylist = data_sep.files
+    old_segments = {}
+    old_processed_data = {}
+
+
 L = len(keylist)
 processed_data = {}
 segments = {}
@@ -36,6 +57,9 @@ for i,key in enumerate(keylist):
     processed_data[key] = emg_rect_sub_filt
     segments[key] = emg_seg
 
+processed_data = {**processed_data, **old_processed_data}
+segments = {**segments, **old_segments}
+
 print()
-np.savez(os.path.join(processedPath,"db2_processed2.npz"), **processed_data)
-np.savez(os.path.join(processedPath,"segments2.npz"), **segments)
+np.savez(processed_data_path, **processed_data)
+np.savez(segments_path, **segments)
