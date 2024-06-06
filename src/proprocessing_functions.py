@@ -1,9 +1,9 @@
 import os.path
 import numpy as np
 import constants
-import helper_functions
+import plot_functions
 import scipy
-
+import time
 
 """
     For segmenting sEMG signal using sliding window of given shape and size
@@ -63,6 +63,11 @@ def applyLPFilter(x,Fc=1,Fs=100,N=1):
     output = scipy.signal.filtfilt(b, a, x, axis=0, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1))
     return output
 
+def applyLPFilter2(emg,Fc=1,Fs=100,N=1):
+    f_sos = scipy.signal.butter(N=1, Wn=2 * Fc / Fs, btype='low', output='sos')
+    return scipy.signal.sosfilt(f_sos, emg,axis=0)
+
+
 def rmsRect(emg:np.ndarray, fs = 2000, win_size_ms=200):
     emg_rect = np.zeros(emg.shape)
     W = int(win_size_ms*fs/1000)
@@ -73,30 +78,3 @@ def rmsRect(emg:np.ndarray, fs = 2000, win_size_ms=200):
         emg_rect[i, :] = np.sqrt(np.mean(emg_pad[i:i + win, :]**2, axis=0))
     return emg_rect
 
-#Main
-
-# old_freq = 2000
-# new_freq = 100
-#
-# path = constants.DATA_PATH
-# filepath = os.path.join(path, 'emg.npz')
-# emg = np.transpose(np.load(filepath)['arr_0'])
-# emg_rect = rmsRect(emg, fs=old_freq, win_size_ms=200)
-# emg_rect_sub = subsample(emg_rect, init_freq=old_freq, new_freq=new_freq)
-# emg_rect_sub_filt = applyLPFilter(emg_rect_sub, Fc=1, Fs=new_freq, N=1)
-#
-# emg_seg = get_segmentation_indices(emg_rect_sub_filt, window_size=15, window_step=6)
-#
-# helper_functions.plot_sEMG(emg, fs=old_freq, figure_name='raw')
-# helper_functions.plot_sEMG(emg_rect, fs=old_freq, figure_name='rectified')
-# helper_functions.plot_sEMG(emg_rect_sub, fs=new_freq, figure_name='subsampled')
-# helper_functions.plot_sEMG(emg_rect_sub_filt, fs=new_freq, figure_name='filtered')
-#
-# helper_functions.plotSpectrum(emg[:,0], fs=old_freq, figure_name='raw spec')
-# helper_functions.plotSpectrum(emg_rect[:,0], fs=old_freq, figure_name='rect spec')
-# helper_functions.plotSpectrum(emg_rect_sub[:,0], fs=new_freq, figure_name='subsampled spec')
-# helper_functions.plotSpectrum(emg_rect_sub_filt[:,0], fs=new_freq, figure_name='filtered spec')
-#
-#
-#
-# print()
