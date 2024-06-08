@@ -45,7 +45,7 @@ new_freq = 100
 
 for i,key in enumerate(keylist):
     t1 = time.time()
-    emg = np.transpose(data_sep[key])
+    emg = np.expand_dims(np.transpose(data_sep[key]),axis=-1)
     emg_rect = rmsRect(emg, fs=old_freq, win_size_ms=200)
     emg_rect_sub = subsample(emg_rect, init_freq=old_freq, new_freq=new_freq)
     emg_rect_sub_filt = applyLPFilter(emg_rect_sub, Fc=1, Fs=new_freq, N=1)
