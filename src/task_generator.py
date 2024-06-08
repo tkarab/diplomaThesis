@@ -76,7 +76,7 @@ class TaskGenerator(utils.Sequence):
         segment_start = random.choice(self.segments[key])
         indices = np.arange(segment_start, segment_start+self.window_size)
         x = np.take(self.data[key],indices,axis=0)
-        x = np.expand_dims(x,axis=-1)
+        # x = np.expand_dims(x,axis=-1)
         return x
 
     def generate_task_1(self):
