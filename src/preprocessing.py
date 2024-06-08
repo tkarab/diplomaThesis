@@ -9,7 +9,7 @@ from proprocessing_functions import *
 """
  *DESCRIPTION*
     This code is aimed to pick the separated data from their location and apply the preprocessing
-    steps found in 'proprocessing_functions.py', depending on the needs of each Database.
+    steps found in 'preprocessing_functions.py', depending on the needs of each Database.
     The way it's written it initially checks whether there already is a file containing preprocessed 
     data of that database within the directory, and if so, it checks whether some keys haven't been
     processed yet. That way the preprocessing process (which is time consuming) could be broken down into

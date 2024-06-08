@@ -3,12 +3,14 @@ from keras import utils
 import tensorflow
 import keras
 import random
+import constants
+import os
 
 
 
 
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=40, batches: int = 1000):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=15, batches: int = 1000):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -47,8 +49,11 @@ class TaskGenerator(utils.Sequence):
         return
 
     def getData(self, path = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_processed.npz"):
-        path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_ex{}_{}.npz'.format(self.experiment[0], self.mode)
+        # path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_ex{}_{}.npz'.format(self.experiment[0], self.mode)
+        path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')
+        seg_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_segments.npz')
         self.data = np.load(path)
+        self.segments = np.load(seg_path)
 
     def getKeys(self,*entries:tuple) -> list:
         return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
@@ -67,10 +72,17 @@ class TaskGenerator(utils.Sequence):
     def __len__(self):
         return self.batches
 
+    def get_segment_of_semg(self, key):
+        segment_start = random.choice(self.segments[key])
+        indices = np.arange(segment_start, segment_start+self.window_size)
+        x = np.take(self.data[key],indices,axis=0)
+        x = np.expand_dims(x,axis=-1)
+        return x
+
     def generate_task_1(self):
         key_list = []
-        support_set = np.empty((self.way, self.shot, self.channels, self.window_size, 1))
-        query_image = np.empty((1, self.channels, self.window_size, 1))
+        support_set = np.empty((self.way, self.shot, self.window_size, self.channels, 1))
+        query_image = np.empty((1, self.window_size, self.channels, 1))
 
         task_gestures = random.sample(self.g_domain, self.way)
         query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
@@ -84,18 +96,20 @@ class TaskGenerator(utils.Sequence):
 
         query_key = key_list[query_gesture_index].pop()
 
-        #Nxk support set is made up of N sets of k images from each category
-        #gest_key_list contains all the keys for the i-th category
-        #i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
+        # Nxk support set is made up of N sets of k images from each category
+        # gest_key_list contains all the keys for the i-th category
+        # i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
         #  ['s1g5r2', 's3g5r3', 's12g5r4']
         # Each key corresponds to a Lx12x40x1 segmented array (in segments of 40 samples) where L is the number of segments for each movement (could vary depending o movement length)
         # For each movement one segment is chosen randomly
         for i,gest_key_list in enumerate(key_list):
-            support_set[i] = np.array([random.choice(self.data[key]) for key in gest_key_list])
+            shots = [self.get_segment_of_semg(key) for key in gest_key_list]
+            support_set[i] = np.array(shots)
 
-        query_image = np.array([random.choice(self.data[query_key])])
+
+        query_image = self.get_segment_of_semg(query_key)
         label = utils.to_categorical(query_gesture_index, num_classes=self.way)
-        #printKeys(key_list)
+
         return support_set, query_image, label
 
     def generate_task_2a(self):
@@ -117,12 +131,11 @@ class TaskGenerator(utils.Sequence):
         query_key = key_list[query_gesture_index].pop()
 
         for i, gest_key_list in enumerate(key_list):
-            support_set[i] = np.array([random.choice(self.data[key]) for key in gest_key_list])
+            shots = [self.get_segment_of_semg(key) for key in gest_key_list]
+            support_set[i] = np.array(shots)
 
-        query_image = np.array([random.choice(self.data[query_key])])
+        query_image = self.get_segment_of_semg(query_key)
         label = utils.to_categorical([query_gesture_index], num_classes=self.way)
-
-        # printKeys(key_list)
 
         return support_set, query_image, label
 
