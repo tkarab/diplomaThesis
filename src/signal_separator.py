@@ -4,7 +4,7 @@ import constants
 import time
 
 def getSubjectPath(db,subject,exercise):
-    return constants.ninaproPath + r'\DB{}\DB{}_s{}\S{}_E{}_A1.mat'.format(db,db,subject,subject,exercise)
+    return constants.NINAPRO_PATH + r'\DB{}\DB{}_s{}\S{}_E{}_A1.mat'.format(db, db, subject, subject, exercise)
 
 def getSubjectKey(subject,gesture,repetition):
     return r's{}g{}r{}'.format(subject,gesture,repetition)

@@ -7,7 +7,7 @@ import sys
 import matplotlib.pyplot as plt
 import constants
 
-folder_s = os.path.join(constants.ninaproPath,'DB1')
+folder_s = os.path.join(constants.NINAPRO_PATH, 'DB1')
 folder_t = 'Ninapro-DB1-Proc'
 subjects_num = 28
 rep_index = 10
