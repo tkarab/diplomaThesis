@@ -57,6 +57,7 @@ def get_prototypes_distances_for_small_set(test_N=3, test_k=2, test_dim=5):
     print_array(out_prediction, 'prediction')
 
     return
+  
 
 
 dim = 9
@@ -91,12 +92,11 @@ query_prediction_layer = Lambda(function=fsl_functions.softmax_classification)([
 
 #models
 
+
 model_support_embeddings = keras.Model(inputs=support_set_inp_shape_layer, outputs=support_set_embeddings_layer)
 model_query_embeddings = keras.Model(inputs=query_set_inp_shape_layer, outputs=query_set_embedding_layer)
 model_prototypes = keras.Model(inputs = model_support_embeddings.output, outputs=prototypes_layer)
 
-
-# out_distances_no_cnn = model_distances_no_cnn.predict([out_prototypes_no_cnn, test_query])
 
 model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
 model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.0001), metrics=['categorical_accuracy'])#, run_eagerly=True)
@@ -108,6 +108,7 @@ k = 3
 train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=10000)
 
 [x,y], label = train_loader[0]
+
 
 check_support_embeddings_array = model_support_embeddings.predict(x)
 check_query_embedding_array = model_query_embeddings.predict(y)
