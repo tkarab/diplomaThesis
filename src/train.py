@@ -7,6 +7,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.layers import Lambda
 from task_generator import TaskGenerator
 import numpy as np
+import model_assembly
 
 def print_array(array, name:str):
     print(f'\t-- {name}\n')
@@ -34,10 +35,22 @@ def print_array(array, name:str):
     print('\n\n')
     return
 
+class IterationLoggingCallback(keras.callbacks.Callback):
+    # def on_batch_end(self, batch, logs=None):
+    #     if (batch % 100) == 0:
+    #         # print(f"Batch {batch + 1}: loss = {logs.get('loss'):.2f}\n")
+    #         print()
+    def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(epoch, logs)
+        print('win_size: ', win_size)
 
-
-inp_shape = (12,40,1)
-cnn_backbone = custom_models.improvedAtzoriNet(inp_shape)#simplest_conv_net_1_layer(input_shape = inp_shape, feature_vector_size=12)
+iterations_per_epoch = 1000
+epochs = 25
+win_size = 15
+channels = 12
+inp_shape = (win_size,channels,1)
+cnn_backbone = custom_models.AtzoriNetDB2_embedding_only(input_shape=inp_shape)
+                            #simplest_conv_net_1_layer(input_shape = inp_shape, feature_vector_size=12)
 
 model_timeDist = layers.TimeDistributed(cnn_backbone)
 
@@ -52,22 +65,26 @@ query_set_embedding_layer = cnn_backbone(query_set_inp_shape_layer)
 prototypes_layer = Lambda(function=fsl_functions.produce_prototype)(support_set_embeddings_layer)
 query_prediction_layer = Lambda(function=fsl_functions.softmax_classification)([prototypes_layer, query_set_embedding_layer])
 
-#model
-model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
-model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.0001), metrics=['categorical_accuracy'])#, run_eagerly=True)
-
 ex = '1'
 N = 5
 k = 3
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=10000)
+#model
+# model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
+model = model_assembly.assemble_model_timeDist(cnn_backbone, inp_shape)
+model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])#, run_eagerly=True)
 
-[x,y], label = train_loader[0]
+model2 = model_assembly.assemble_model_reshape(cnn_backbone, inp_shape, way=N, shot=k)
+model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
 
+
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=iterations_per_epoch, print_labels=True, print_lebels_frequency=5)
+
+# [x,y], label = train_loader[0]
 
 print("END")
-
-#model.fit(train_loader, epochs=25,   shuffle=False)
+callback = IterationLoggingCallback()
+model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
 
 
