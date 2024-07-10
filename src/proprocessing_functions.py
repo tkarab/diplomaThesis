@@ -12,6 +12,7 @@ import time
     
     i.e. if element slice_start_indices[i]=124 and window size = 15, the segment should be:
         emg[slice_start_indices[i] : slice_start_indices[i] + window_size][:]
+    ->  emg[124:139][:]
     
     PARAMETERS
     x : np.ndarray -> the emg signal
@@ -20,7 +21,7 @@ import time
     
     RETURNS
     slice_start_indices : np.ndarray -> array of length N where N is the number of segments, which contains
-                                        sta starting indices of all segments
+                                        the starting indices of all segments
 """
 def get_segmentation_indices(x:np.ndarray, window_size:int, window_step:int):
     slice_start_indices = np.arange(0,len(x)-window_size+1,window_step)
