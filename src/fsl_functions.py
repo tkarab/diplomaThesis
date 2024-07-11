@@ -33,9 +33,10 @@ def l2_dist(args):
     diff = q_exp - p_exp
     return tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
 
-def softmax_classification(args):
+def softmax_classification(args, print_result=False):
     pred = tf.nn.softmax(-euc_dist(args))
-    print_tensor(pred)
+    if print_result:
+        print_tensor(pred)
     return pred
 
 def get_fsl_set_rand(N,k,dim1=28,dim2=28):
