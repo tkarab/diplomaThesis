@@ -12,6 +12,7 @@ import time
     
     i.e. if element slice_start_indices[i]=124 and window size = 15, the segment should be:
         emg[slice_start_indices[i] : slice_start_indices[i] + window_size][:]
+    ->  emg[124:139][:]
     
     PARAMETERS
     x : np.ndarray -> the emg signal
@@ -20,7 +21,9 @@ import time
     
     RETURNS
     slice_start_indices : np.ndarray -> array of length N where N is the number of segments, which contains
-                                        sta starting indices of all segments
+                                        the starting indices of all segments
+    EXAMPLE
+    for a sliding window with step size 6, the starting indices of each segment should look like this: [0 6 12 18....]
 """
 def get_segmentation_indices(x:np.ndarray, window_size:int, window_step:int):
     slice_start_indices = np.arange(0,len(x)-window_size+1,window_step)
@@ -71,10 +74,19 @@ def applyLPFilter2(emg,Fc=1,Fs=100,N=1):
 def rmsRect(emg:np.ndarray, fs = 2000, win_size_ms=200):
     emg_rect = np.zeros(emg.shape)
     W = int(win_size_ms*fs/1000)
+
+    # npad: window_length/2 (used later for padding)
     npad = np.floor(W / 2).astype(int)
     win = int(W)
+
+    # Zero padding with half the length of the window from each side
+    # Thus ensuring the sliding window won't affect the total signal length
     emg_pad = np.pad(emg, ((npad, npad), (0, 0)), 'symmetric')
+
+    # emg[i] is replaced by the rms value of all the samples contained by the sliding window
+    # centered in position i
     for i in range(len(emg_rect)):
         emg_rect[i, :] = np.sqrt(np.mean(emg_pad[i:i + win, :]**2, axis=0))
     return emg_rect
+
 

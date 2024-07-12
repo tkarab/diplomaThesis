@@ -10,7 +10,7 @@ import os
 
 
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=15, batches: int = 1000):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=15, batches: int = 1000, print_labels = False, print_lebels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -19,6 +19,8 @@ class TaskGenerator(utils.Sequence):
         self.window_size = window_size
         self.getData()
         self.batches = batches
+        self.print_labels = print_labels
+        self.print_label_freq = print_lebels_frequency
 
 
         if self.experiment == '1':
@@ -64,10 +66,10 @@ class TaskGenerator(utils.Sequence):
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
 
-    def __getitem__(self, item):
-        suport, query, label = self.task_generator()  # activates either generate_task_1() or generate_task_2a() depending on the experiment
-        print()
-        print(label)
+    def __getitem__(self, index):
+        suport, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
+        # print(f"~ __getitem__ ~ -> ({item})\n\n")
+        # print(label)
         return [suport, query], label
     def __len__(self):
         return self.batches
@@ -76,10 +78,10 @@ class TaskGenerator(utils.Sequence):
         segment_start = random.choice(self.segments[key])
         indices = np.arange(segment_start, segment_start+self.window_size)
         x = np.take(self.data[key],indices,axis=0)
-        x = np.expand_dims(x,axis=-1)
+        # x = np.expand_dims(x,axis=-1)
         return x
 
-    def generate_task_1(self):
+    def generate_task_1(self, index):
         key_list = []
         support_set = np.empty((self.way, self.shot, self.window_size, self.channels, 1))
         query_image = np.empty((1, self.window_size, self.channels, 1))
@@ -100,19 +102,23 @@ class TaskGenerator(utils.Sequence):
         # gest_key_list contains all the keys for the i-th category
         # i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
         #  ['s1g5r2', 's3g5r3', 's12g5r4']
-        # Each key corresponds to a Lx12x40x1 segmented array (in segments of 40 samples) where L is the number of segments for each movement (could vary depending o movement length)
+        # Each key corresponds to a Lx12x15x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
         # For each movement one segment is chosen randomly
         for i,gest_key_list in enumerate(key_list):
             shots = [self.get_segment_of_semg(key) for key in gest_key_list]
             support_set[i] = np.array(shots)
 
 
-        query_image = self.get_segment_of_semg(query_key)
+        query_image = np.expand_dims(self.get_segment_of_semg(query_key),axis=0)
         label = utils.to_categorical(query_gesture_index, num_classes=self.way)
+
+        # if self.print_labels and index%self.print_label_freq == 0:
+        #     print(f"index={index}\n\n")
+        #     printKeys(key_list)
 
         return support_set, query_image, label
 
-    def generate_task_2a(self):
+    def generate_task_2a(self, index):
         key_list = []
         support_set = np.empty((self.way, self.shot, self.channels, self.window_size, 1))
         query_image = np.empty((1, self.channels, self.window_size, 1))
@@ -134,16 +140,28 @@ class TaskGenerator(utils.Sequence):
             shots = [self.get_segment_of_semg(key) for key in gest_key_list]
             support_set[i] = np.array(shots)
 
-        query_image = self.get_segment_of_semg(query_key)
+        query_image = np.repeat(np.expand_dims(self.get_segment_of_semg(query_key),axis=0),self.way,axis=0)
         label = utils.to_categorical([query_gesture_index], num_classes=self.way)
+
+        # if self.print_labels and index%self.print_label_freq == 0:
+        #     print(f"index={index}\n\n")
+        #     printKeys(key_list)
+
 
         return support_set, query_image, label
 
+"""
+Prints the keys of the support and query sets of a specific task in a formatted way
+i.e. |  s1g1r3  s2g5r4  s12g7r3 |
+     | s14g1r5  s5g5r1  s9g7r1  |
+
+"""
 def printKeys(keys):
     print()
     for j in range(len(keys[0])):
         print("| |", end='')
         for i in range(len(keys)):
+            # Key takes up 8 cells of space
             print("{:<8}".format(keys[i][j]),end="| |")
         print()
 

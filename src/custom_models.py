@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras import initializers, regularizers
 
 def simple_conv_net(feature_vector_size=5, input_shape = (28,28,1)):
     convnet = keras.Sequential(name='mymodel')
@@ -109,6 +110,7 @@ Output: (N,1) vector with prediction for each of N classes
 No Dropout Layer Used
 """
 def AtzoriNetDB2(N = 49, input_shape = (15,12,1)):
+
     model = keras.Sequential(
         name = 'AtzoriNetDB2',
         layers = [
@@ -151,6 +153,63 @@ def AtzoriNetDB2(N = 49, input_shape = (15,12,1)):
     return model
 
 
+def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = True, dropout_pct = 0.15, krnl_init_name = "glorot_normal", add_regularizer:bool = False, l2 = 0.0002):
+    # Kernel Initializer
+    if krnl_init_name == "glorot_normal":
+        kernel_init = initializers.glorot_normal(seed=0)
+    else:
+        kernel_init = initializers.glorot_uniform(seed=0)
+
+    if add_regularizer:
+        kernel_reg = regularizers.l2(l2)
+    else:
+        kernel_reg = None
+
+    # Input
+    X_inp = layers.Input(shape=input_shape)
+
+    # Layer 1: Padding (0,5) -> Conv2D [32 x (1,12)] -> ReLU
+    # Input:  (15,12,1)
+    # Output: (15,11,32)
+    X = layers.ZeroPadding2D(padding=(0, 5))(X_inp)
+    X = layers.Conv2D(filters=32, kernel_size=(1, 12), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
+    if add_dropout == True:
+        X = layers.Dropout(dropout_pct)(X)
+
+    # Layer 2: Padding (1,1) -> Conv2D [32 x (3,3)] -> ReLU -> AvgPooling(3,3)
+    # Input:  (15,11,32)
+    # Output: (5,3,32)
+    X = layers.ZeroPadding2D(padding=(1, 1))(X)
+    X = layers.Conv2D(filters=32, kernel_size=(3, 3), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
+    if add_dropout == True:
+        X = layers.Dropout(dropout_pct)(X)
+    X = layers.AveragePooling2D(pool_size=(3, 3))(X)
+
+    # Layer 3: Padding (2,2) -> Conv2D [64 x (5,5)] -> ReLU -> AvgPooling(3,3)
+    # Input:  (5,3,32)
+    # Output: (1,1,64)
+    X = layers.ZeroPadding2D(padding=(2, 2))(X)
+    X = layers.Conv2D(filters=64, kernel_size=(5, 5), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
+    if add_dropout == True:
+        X = layers.Dropout(dropout_pct)(X)
+    X = layers.AveragePooling2D(pool_size=(3, 3))(X)
+
+    # Layer 4: Padding (4,0) -> Conv2D [64 x (9,1)] -> ReLU
+    # The Output is a vector of length 64 corresponding to the input image
+    # Input:  (1,1,64)
+    # Output: (1,1,64)
+    X = layers.ZeroPadding2D(padding=(4, 0))(X)
+    X = layers.Conv2D(filters=64, kernel_size=(9, 1), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
+    if add_dropout == True:
+        X = layers.Dropout(dropout_pct)(X)
+
+    Y = layers.Flatten()(X)
+
+    model = keras.Model(name = 'AtzoriNetDB2',
+                        inputs = X_inp,
+                        outputs = Y)
+
+    return model
 
 def test_more_dims_cnn():
     convnet = keras.Sequential(name='mymodel')
@@ -174,5 +233,5 @@ def test_godoy_net(input_shape = (12,40,1)):
 
     return model
 
-model = AtzoriNetDB2()
-print(model.summary())
+# model = AtzoriNetDB2_embedding_only()
+# print(model.summary())
