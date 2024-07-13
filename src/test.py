@@ -2,33 +2,82 @@ import numpy as np
 import os
 import sys
 import random
-import tensorflow as tf
-import custom_models
-
+# import tensorflow as tf
+# import custom_models
+import preprocessing_functions as pr
+import constants
+import time
 
 def getKeys(*entries:tuple):
     return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
 
-keys = []
+DATABASE = 2
 
-mode = 'train'
+preprocess_operations = ["RMS", "SUBSAMPLE", "DISCARD", "LOWPASS", "MIN-MAX", "M-LAW"]
 
-s_field = list(range(1,41))
-g_field = list(range(1,50))
-if mode == 'train':
-    r_field = [1,3,4,6]
-else:
-    r_field = [2,5]
+preprocess_config = {
+    "RMS"       :   False,
+    "DISCARD"   :   True,
+    "SUBSAMPLE" :   True,
+    "LOWPASS"   :   True,
+    "MIN-MAX"   :   False,
+    "M-LAW"     :   False,
+    "SEGMENT"   :   True
+}
+preprocess_funcs = {
+    "RMS"       :   pr.rmsRect,
+    "DISCARD"   :   pr.discard_early_and_late_gest_stages,
+    "SUBSAMPLE" :   pr.subsample,
+    "LOWPASS"   :   pr.applyLPFilter,
+    "MIN-MAX"   :   None,
+    "M-LAW"     :   None,
+    "SEGMENT"   :   pr.get_segmentation_indices
+}
+preprocess_params = {
+    "RMS"       :   {"fs" : 2000,  "win_size_ms" : 200 },
+    "DISCARD"   :   {"num_samples_to_keep" : 350},
+    "SUBSAMPLE" :   {"init_freq" : 2000, "new_freq" : 100},
+    "LOWPASS"   :   {"Fc" : 1, "Fs" : 100, "N" : 1},
+    "MIN-MAX"   :   {},
+    "M-LAW"     :   {},
+    "SEGMENT"   :   {"window_size" : 15, "window_step" : 6}
+}
 
-# a = tf.constant([[1,2,3,4],[5,6,7,8]])
-# a = tf.expand_dims(a, axis=2)
+separated_data_filename = os.path.join(constants.SEPARATED_DATA_PATH,f'db{DATABASE}.npz')
 
+operations_to_perform = [op for op in preprocess_operations if preprocess_config[op] == True]
 
-nn = custom_models.simple_conv_net()
+data_sep_raw = np.load(separated_data_filename)
+data_proc = {}
+data_seg = {}
 
-print(nn.summary())
+keys = data_sep_raw.files
 
+total_time_per_operation = {op : 0 for op in operations_to_perform}
+total_time_per_operation["SEGMENT"] = 0
+
+t_start = time.time()
+for i,key in enumerate(keys):
+    emg = data_sep_raw[key]
+
+    # t_i = time.time()
+    for operation in operations_to_perform:
+        func = preprocess_funcs[operation]
+        params = preprocess_params[operation]
+        t1 = time.time()
+        emg = func(x=emg,**params)
+        total_time_per_operation[operation] += time.time() - t1
+    data_proc[key] = np.copy(emg)
+    # print(f"key {i+1}/{len(keys)}: {time.time()-t_i}")
+
+    if preprocess_config["SEGMENT"] == True:
+        segments = preprocess_funcs["SEGMENT"](x=emg,**preprocess_params["SEGMENT"])
+        t1 = time.time()
+        data_seg[key] = np.copy(segments)
+        total_time_per_operation["SEGMENT"] += time.time()-t1
+
+total_time = time.time() - t_start
 print()
-#getKeys((1,2,3),(4,5,6))
+
 
 
