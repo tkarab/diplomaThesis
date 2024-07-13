@@ -5,6 +5,7 @@ import keras
 import random
 import constants
 import os
+import helper_functions
 
 
 
@@ -150,19 +151,5 @@ class TaskGenerator(utils.Sequence):
 
         return support_set, query_image, label
 
-"""
-Prints the keys of the support and query sets of a specific task in a formatted way
-i.e. |  s1g1r3  s2g5r4  s12g7r3 |
-     | s14g1r5  s5g5r1  s9g7r1  |
-
-"""
-def printKeys(keys):
-    print()
-    for j in range(len(keys[0])):
-        print("| |", end='')
-        for i in range(len(keys)):
-            # Key takes up 8 cells of space
-            print("{:<8}".format(keys[i][j]),end="| |")
-        print()
 
 
