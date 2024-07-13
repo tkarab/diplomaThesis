@@ -7,6 +7,7 @@ import random
 import preprocessing_functions as pr
 import constants
 import time
+import helper_functions
 
 def getKeys(*entries:tuple):
     return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
@@ -17,12 +18,12 @@ preprocess_operations = ["RMS", "SUBSAMPLE", "DISCARD", "LOWPASS", "MIN-MAX", "M
 
 preprocess_config = {
     "RMS"       :   False,
-    "DISCARD"   :   True,
-    "SUBSAMPLE" :   True,
-    "LOWPASS"   :   True,
+    "DISCARD"   :   False,
+    "SUBSAMPLE" :   False,
+    "LOWPASS"   :   False,
     "MIN-MAX"   :   False,
     "M-LAW"     :   False,
-    "SEGMENT"   :   True
+    "SEGMENT"   :   False
 }
 preprocess_funcs = {
     "RMS"       :   pr.rmsRect,
@@ -67,7 +68,7 @@ for i,key in enumerate(keys):
         t1 = time.time()
         emg = func(x=emg,**params)
         total_time_per_operation[operation] += time.time() - t1
-    data_proc[key] = np.copy(emg)
+    # data_proc[key] = np.copy(emg)
     # print(f"key {i+1}/{len(keys)}: {time.time()-t_i}")
 
     if preprocess_config["SEGMENT"] == True:
@@ -75,6 +76,8 @@ for i,key in enumerate(keys):
         t1 = time.time()
         data_seg[key] = np.copy(segments)
         total_time_per_operation["SEGMENT"] += time.time()-t1
+
+    # data_proc[helper_functions.reformat_key(key)] = np.copy(emg)
 
 total_time = time.time() - t_start
 print()
