@@ -5,20 +5,34 @@ import os
 import sys
 import helper_functions as help
 
+def calculate_total_size(data_rms:dict):
+    total_size = 0
+    # Total size in bytes
+    for key,emg in data_rms:
+        total_size += emg.nbytes
+    # size in giga bytes
+    total_size/=(2**30)
+    print(f"Total size: {total_size:.2f}Gb")
+
 """
 DESCRIPTION
     For saving the dict of existing rms-rectified signals in the given path.
     Takes into account that the dict containing the rectified data, has all the possible
     keys for the specific database but not all data have been rectified, and so some values 
-    for specific keys are None
+    for specific keys are None.
+    If no rectification has been done and no folder exists, it creates one based on the given name
 """
-
-
-def save_rectified_gestures(data_rms: dict, full_path: str):
+def save_rectified_gestures(data_rms: dict, full_path: str, filename:str):
     # Keeps only the non None values
     data_rms = {key: data_rms[key] for key in data_rms if data_rms[key] is not None}
 
-    np.savez(full_path, **data_rms)
+    if not os.path.exists(full_path):
+        os.mkdir(full_path)
+
+    full_file_path = os.path.join(full_path,filename)
+    np.savez(full_file_path, **data_rms)
+    print(f"Rectified data saved at: '{full_file_path}'")
+
     return
 
 def rmsRect(x:np.ndarray, fs = 2000, win_size_ms=200):
@@ -117,15 +131,11 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
             data_rms[key] = None
 
     else:
-        os.mkdir(full_rms_dir_path)
         remaining_keys = data_sep_raw.files
         # Initializing values for all keys to None
         data_rms = {key: None for key in remaining_keys}
 
-    # TODO - Remove
-    time_list = []
     total_keys = len(remaining_keys) + already_rectified
-
     t_start = time.time()
     t1 = time.time()
     for i, key in enumerate(remaining_keys):
@@ -136,11 +146,11 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
         if (key[3:] == 'g49r06'):
             time_for_subject = time.time() - t1
             print(f"subject '{key[:3]}' ({already_rectified + i + 1}/{total_keys}) - {time_for_subject:.2f}s")
-            time_list.append(time_for_subject)
             t1 = time.time()
 
     print("total_time:", time.time() - t_start)
-    save_rectified_gestures(data_rms, full_path=os.path.join(full_rms_dir_path, rms_filename))
+    save_rectified_gestures(data_rms, full_path=full_rms_dir_path, filename=rms_filename)
+    calculate_total_size(data_rms)
 
     return
 
@@ -156,7 +166,7 @@ if __name__ == "__main__":
         # Default values
         db = 2
         fs = 2000
-        win_size_ms = 250
+        win_size_ms = 200
 
     if db == 1:
         path = constants.PROCESSED_DATA_PATH_DB1
