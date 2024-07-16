@@ -71,23 +71,6 @@ def applyLPFilter2(emg,Fc=1,Fs=100,N=1):
     return scipy.signal.sosfilt(f_sos, emg,axis=0)
 
 
-def rmsRect(x:np.ndarray, fs = 2000, win_size_ms=200):
-    emg_rect = np.zeros(x.shape)
-    W = int(win_size_ms*fs/1000)
-
-    # npad: window_length/2 (used later for padding)
-    npad = np.floor(W / 2).astype(int)
-    win = int(W)
-
-    # Zero padding with half the length of the window from each side
-    # Thus ensuring the sliding window won't affect the total signal length
-    emg_pad = np.pad(x, ((npad, npad), (0, 0)), 'symmetric')
-
-    # emg[i] is replaced by the rms value of all the samples contained by the sliding window
-    # centered in position i
-    for i in range(len(emg_rect)):
-        emg_rect[i, :] = np.sqrt(np.mean(emg_pad[i:i + win, :]**2, axis=0))
-    return emg_rect
 
 # Keeps only a certain amount of samples from each emg, the middle 'num_samples_to_keep' ones
 def discard_early_and_late_gest_stages(x, num_samples_to_keep):
@@ -95,3 +78,5 @@ def discard_early_and_late_gest_stages(x, num_samples_to_keep):
     W = num_samples_to_keep//2
     L = len(x)
     return x[max(L//2 - W, 0):min(L//2 + W, L)]
+
+
