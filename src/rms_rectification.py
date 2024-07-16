@@ -77,8 +77,8 @@ def rmsRect2(x:np.ndarray, fs = 2000, win_size_ms=200):
     # emg[i] is replaced by the rms value of all the samples contained by the sliding window
     # centered in position i
     emg_pad_csum = np.pad(emg_pad_csum,((1,0),(0,0)) ,mode='constant', constant_values=0)
-    for i in range(len(emg_rect)):
-        emg_rect[i, :] = np.sqrt((emg_pad_csum[i+win,:] - emg_pad_csum[i])/win)
+
+    emg_rect = np.sqrt((emg_pad_csum[win:-1]-emg_pad_csum[:-win-1])/win)
     return emg_rect
 
 
@@ -131,13 +131,11 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
     for i, key in enumerate(remaining_keys):
         emg = data_sep_raw[key]
         emg_rms = rmsRect2(emg, win_size_ms=win_size_ms, fs=fs)
-        # emg_rms2 = pr.rmsRect(emg, win_size_ms=win_size_ms, fs=fs)
-        # print(np.array_equal(emg_rms, emg_rms2), "rms difference:",np.sqrt(np.mean((emg_rms2-emg_rms)**2)))
 
         data_rms[key] = np.copy(emg_rms)
         if (key[3:] == 'g49r06'):
             time_for_subject = time.time() - t1
-            print(f"key '{key}' ({already_rectified + i + 1}/{total_keys}) - {time_for_subject:.2f}s")
+            print(f"subject '{key[:3]}' ({already_rectified + i + 1}/{total_keys}) - {time_for_subject:.2f}s")
             time_list.append(time_for_subject)
             t1 = time.time()
 
@@ -158,7 +156,7 @@ if __name__ == "__main__":
         # Default values
         db = 2
         fs = 2000
-        win_size_ms = 200
+        win_size_ms = 250
 
     if db == 1:
         path = constants.PROCESSED_DATA_PATH_DB1
