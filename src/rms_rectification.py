@@ -8,11 +8,11 @@ import helper_functions as help
 def calculate_total_size(data_rms:dict):
     total_size = 0
     # Total size in bytes
-    for key,emg in data_rms:
+    for key,emg in data_rms.items():
         total_size += emg.nbytes
     # size in giga bytes
     total_size/=(2**30)
-    print(f"Total size: {total_size:.2f}Gb")
+    print(f"Total size: {total_size:.1f}Gb")
 
 """
 DESCRIPTION
@@ -32,28 +32,8 @@ def save_rectified_gestures(data_rms: dict, full_path: str, filename:str):
     full_file_path = os.path.join(full_path,filename)
     np.savez(full_file_path, **data_rms)
     print(f"Rectified data saved at: '{full_file_path}'")
-
+    calculate_total_size(data_rms)
     return
-
-def rmsRect(x:np.ndarray, fs = 2000, win_size_ms=200):
-    emg_rect = np.zeros(x.shape)
-    W = int(win_size_ms*fs/1000)
-
-    # npad: window_length/2 (used later for padding)
-    npad = np.floor(W / 2).astype(int)
-    win = int(W)
-
-    # Symmetric padding with half the length of the window from each side
-    # Thus ensuring the sliding window won't affect the total signal length
-    # i.e. for x = [0,1,2,3,4,5,6,7] and W/2 == 2 symmetric padding should be
-    #          [1,0,0,1,2,3,4,5,6,7,7,6]
-    emg_pad = np.pad(x, ((npad, npad), (0, 0)), 'symmetric')
-
-    # emg[i] is replaced by the rms value of all the samples contained by the sliding window
-    # centered in position i
-    for i in range(len(emg_rect)):
-        emg_rect[i, :] = np.sqrt(np.mean(emg_pad[i:i + win, :]**2, axis=0))
-    return emg_rect
 
 """
 DESCRIPTION
@@ -150,7 +130,6 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
 
     print("total_time:", time.time() - t_start)
     save_rectified_gestures(data_rms, full_path=full_rms_dir_path, filename=rms_filename)
-    calculate_total_size(data_rms)
 
     return
 
@@ -166,7 +145,7 @@ if __name__ == "__main__":
         # Default values
         db = 2
         fs = 2000
-        win_size_ms = 200
+        win_size_ms = 50
 
     if db == 1:
         path = constants.PROCESSED_DATA_PATH_DB1
