@@ -5,17 +5,89 @@ import constants
 import os
 import helper_functions
 from preprocessing_functions import *
+import scipy
 
 """
- *DESCRIPTION*
-    This code is aimed to pick the separated data from their location and apply the preprocessing
-    steps found in 'preprocessing_functions.py', depending on the needs of each Database.
-    The way it's written it initially checks whether there already is a file containing preprocessed 
-    data of that database within the directory, and if so, it checks whether some keys haven't been
-    processed yet. That way the preprocessing process (which is time consuming) could be broken down into
-    sessions.
+    For segmenting sEMG signal using sliding window of given shape and size
+    We assume that sEMG signal is given in form of a numpy array with dimensions (time_length x channels) i.e. (500x12)
+    It returns a 1-D numeric array with all the starting indices of the segments.
+
+    i.e. if element slice_start_indices[i]=124 and window size = 15, the segment should be:
+        emg[slice_start_indices[i] : slice_start_indices[i] + window_size][:]
+    ->  emg[124:139][:]
+
+    PARAMETERS
+    x : np.ndarray -> the emg signal
+    window_size : int -> the window size
+    window_step : int -> the window step
+
+    RETURNS
+    slice_start_indices : np.ndarray -> array of length N where N is the number of segments, which contains
+                                        the starting indices of all segments
+    EXAMPLE
+    for a sliding window with step size 6, the starting indices of each segment should look like this: [0 6 12 18....]
+"""
+
+
+def get_segmentation_indices(x: np.ndarray, window_size: int, window_step: int):
+    slice_start_indices = np.arange(0, len(x) - window_size + 1, window_step)
+    return slice_start_indices
+
 
 """
+    For subsampling an sEMG signal, from an initial frequency to a new one.
+    We suppose that x is given as (time_samples x channels)
+
+    PARAMETERS
+    x   ->  the sEMG signal
+    init_freq   ->  the initial frequency
+    new_freq    ->  the new frequency of the signal
+
+    RETURNS
+    the subsampled signal
+"""
+
+
+def subsample(x: np.ndarray, init_freq: float, new_freq: float):
+    sub_factor = int(init_freq / new_freq)
+    indices = np.arange(0, len(x), sub_factor)
+    return np.take(x, indices=indices, axis=0)
+
+
+"""
+    DESCRIPTION
+    Applies a low-pass butterworth filter (usually 1Hz) to the emg    
+
+    PARAMETERS
+    x  : semg signal
+    Fc : Cutoff frequency
+    Fs : Sampling frequency
+    N  : Filter order
+
+    RETURNS
+    filtered and rectified signal (by rectified we mean its absolute value)
+"""
+
+
+def applyLPFilter(x, Fc=1, Fs=100, N=1):
+    f = 2 * Fc / Fs
+    x = np.abs(x)
+    b, a = scipy.signal.butter(N=N, Wn=f, btype='low')
+    output = scipy.signal.filtfilt(b, a, x, axis=0, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1))
+    return output
+
+
+def applyLPFilter2(emg, Fc=1, Fs=100, N=1):
+    f_sos = scipy.signal.butter(N=1, Wn=2 * Fc / Fs, btype='low', output='sos')
+    return scipy.signal.sosfilt(f_sos, emg, axis=0)
+
+
+# Keeps only a certain amount of samples from each emg, the middle 'num_samples_to_keep' ones
+def discard_early_and_late_gest_stages(x, num_samples_to_keep):
+    # Half the length of samples to keep
+    W = num_samples_to_keep // 2
+    L = len(x)
+    return x[max(L // 2 - W, 0):min(L // 2 + W, L)]
 
 
 filepath = os.path.join(constants.SEPARATED_DATA_PATH, 'db2.npz')
@@ -48,53 +120,3 @@ segments = {}
 old_freq = 2000
 new_freq = 100
 
-for i,key in enumerate(keylist):
-    t1 = time.time()
-
-
-    # OUTPUT SHAPE: (time,channels)
-    # Step 1: Transpose
-    # Data are in the form channels x Time (i.e. 12x500)
-    # They need to be transposed (Time x channels)
-    emg = np.transpose(data_sep[key])
-
-    # OUTPUT SHAPE: (time,channels)
-    # Step 2: RMS Rectification
-    emg_rect = rmsRect(emg, fs=old_freq, win_size_ms=200)
-
-    # OUTPUT SHAPE: (reduced_time,channels)
-    # Step 3: Subsampling
-    # No need for anti-aliasing filter due to RMS rectification
-    emg_rect_sub = subsample(emg_rect, init_freq=old_freq, new_freq=new_freq)
-
-    # OUTPUT SHAPE: (reduced_time,channels)
-    # Step 4: Low pass filter
-    emg_rect_sub_filt = applyLPFilter(emg_rect_sub, Fc=1, Fs=new_freq, N=1)
-
-    # Step 5: Signal segmentation
-    # The following function creates a N sized array of integers, each corresponding to the start of a segment of the signal.
-    # The number of segments is determined by the signal size and the given window size and step size
-    # So in reality the signal doesn't get segmented (to avoid duplicate information and around window_size/step_size
-    # as much space (i.e. 15/6 = 2.5).
-    # Instead the starting indices of the would-be segments are created and stored and then a segment is taken each time
-    # by indexing the signal as follows: emg[random_segment_starting_index:random_segment_starting_index+window_size]
-    emg_seg = get_segmentation_indices(emg_rect_sub_filt, window_size=15, window_step=6)
-
-    # Printing total time of the preprocessing operation after each loop
-    total_time = time.time() - t1
-    print(f"key: '{key}' ({i+1}/{L})")
-    print(f"time: {total_time:.2f}")
-
-    # SAVED SHAPE: (reduced_time,channels,1)
-    # Expands the last dimension of the signal so that it goes from (time,channels) to (time,channels,1)
-    # ie. (740,12) -> (740,12,1)
-    processed_data[key] = np.expand_dims(emg_rect_sub_filt,-1)
-    segments[key] = emg_seg
-
-# Saving the newly created data
-processed_data = {**processed_data, **old_processed_data}
-segments = {**segments, **old_segments}
-
-# print()
-np.savez(processed_data_path, **processed_data)
-np.savez(segments_path, **segments)
