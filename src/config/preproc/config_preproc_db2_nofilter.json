@@ -1,0 +1,31 @@
+{
+    "config": {
+        "SUBSAMPLE": true,
+        "DISCARD": true,
+        "LOWPASS": true,
+        "MIN-MAX": false,
+        "M-LAW": false,
+        "SEGMENT": true
+    },
+    "params": {
+        "SUBSAMPLE": {
+            "init_freq": 2000,
+            "new_freq": 100
+        },
+        "DISCARD": {
+            "seconds_to_keep": 3.5,
+            "fs": 100
+        },
+        "LOWPASS": {
+            "fc": 1,
+            "fs": 100,
+            "N": 1
+        },
+        "MIN-MAX": null,
+        "M-LAW": null,
+        "SEGMENT": {
+            "window_size": 15,
+            "window_step": 6
+        }
+    }
+}

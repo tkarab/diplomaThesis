@@ -69,21 +69,23 @@ def subsample(x: np.ndarray, init_freq: float, new_freq: float):
 """
 
 
-def applyLPFilter(x, Fc=1, Fs=100, N=1):
-    f = 2 * Fc / Fs
+def applyLPFilter(x, fc=1, fs=100, N=1):
+    f = 2 * fc / fs
     x = np.abs(x)
     b, a = scipy.signal.butter(N=N, Wn=f, btype='low')
     output = scipy.signal.filtfilt(b, a, x, axis=0, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1))
     return output
 
 
-def applyLPFilter2(emg, Fc=1, Fs=100, N=1):
-    f_sos = scipy.signal.butter(N=1, Wn=2 * Fc / Fs, btype='low', output='sos')
+def applyLPFilter2(emg, fc=1, fs=100, N=1):
+    f_sos = scipy.signal.butter(N=1, Wn=2 * fc / fs, btype='low', output='sos')
     return scipy.signal.sosfilt(f_sos, emg, axis=0)
 
 
 # Keeps only a certain amount of samples from each emg, the middle 'num_samples_to_keep' ones
-def discard_early_and_late_gest_stages(x, num_samples_to_keep):
+def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
+    num_samples_to_keep = seconds_to_keep*fs
+
     # Half the length of samples to keep
     W = num_samples_to_keep // 2
     L = len(x)
