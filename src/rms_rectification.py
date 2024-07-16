@@ -8,7 +8,7 @@ import helper_functions as help
 def calculate_total_size(data_rms:dict):
     total_size = 0
     # Total size in bytes
-    for key,emg in data_rms:
+    for key,emg in data_rms.items():
         total_size += emg.nbytes
     # size in giga bytes
     total_size/=(2**30)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         # Default values
         db = 2
         fs = 2000
-        win_size_ms = 200
+        win_size_ms = 150
 
     if db == 1:
         path = constants.PROCESSED_DATA_PATH_DB1
