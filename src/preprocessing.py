@@ -1,11 +1,13 @@
+import json
+
 import numpy as np
-from tqdm.auto import tqdm
 import time
 import constants
 import os
 import helper_functions
-from preprocessing_functions import *
 import scipy
+import plot_functions as pl
+import data_augmentation as aug
 
 """
     For segmenting sEMG signal using sliding window of given shape and size
@@ -27,8 +29,6 @@ import scipy
     EXAMPLE
     for a sliding window with step size 6, the starting indices of each segment should look like this: [0 6 12 18....]
 """
-
-
 def get_segmentation_indices(x: np.ndarray, window_size: int, window_step: int):
     slice_start_indices = np.arange(0, len(x) - window_size + 1, window_step)
     return slice_start_indices
@@ -46,13 +46,16 @@ def get_segmentation_indices(x: np.ndarray, window_size: int, window_step: int):
     RETURNS
     the subsampled signal
 """
-
-
 def subsample(x: np.ndarray, init_freq: float, new_freq: float):
     sub_factor = int(init_freq / new_freq)
     indices = np.arange(0, len(x), sub_factor)
     return np.take(x, indices=indices, axis=0)
 
+def get_filter_coeffs(fc=1, fs=100, N=1):
+    f = 2 * fc / fs
+    b, a = scipy.signal.butter(N=N, Wn=f, btype='low')
+
+    return b,a
 
 """
     DESCRIPTION
@@ -67,58 +70,79 @@ def subsample(x: np.ndarray, init_freq: float, new_freq: float):
     RETURNS
     filtered and rectified signal (by rectified we mean its absolute value)
 """
-
-
-def applyLPFilter(x, fc=1, fs=100, N=1):
-    f = 2 * fc / fs
+def applyLPFilter(x, b ,a):
     x = np.abs(x)
-    b, a = scipy.signal.butter(N=N, Wn=f, btype='low')
     output = scipy.signal.filtfilt(b, a, x, axis=0, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1))
+
     return output
 
 
 def applyLPFilter2(emg, fc=1, fs=100, N=1):
-    f_sos = scipy.signal.butter(N=1, Wn=2 * fc / fs, btype='low', output='sos')
+    f_sos = scipy.signal.butter(N=N, Wn=2 * fc / fs, btype='low', output='sos')
     return scipy.signal.sosfilt(f_sos, emg, axis=0)
 
 
-# Keeps only a certain amount of samples from each emg, the middle 'num_samples_to_keep' ones
+# Keeps only a certain amount of samples from each emg, the middle seconds_to_keep ones
 def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
-    num_samples_to_keep = seconds_to_keep*fs
-
+    num_samples_to_keep = int(seconds_to_keep*fs)
     # Half the length of samples to keep
     W = num_samples_to_keep // 2
     L = len(x)
     return x[max(L // 2 - W, 0):min(L // 2 + W, L)]
 
 
-filepath = os.path.join(constants.SEPARATED_DATA_PATH, 'db2.npz')
-processed_data_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_processed.npz')
-segments_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_segments.npz')
+def apply_preprocessing(data_path, config_dict:dict):
 
-data_sep = np.load(filepath)
-"""
-    Applies preprocessing steps to the data, either all of them or the remaining ones in case only a portion
-    of them have been processed
-"""
-try:
-    data_proc = np.load(processed_data_path)
-    data_seg = np.load(segments_path)
-    # keys of the remaining gestures that are yet to be processed
-    keylist = list(set(data_sep.files) - set(data_proc.files))
-    old_segments = dict(data_seg)
-    old_processed_data = dict(data_proc)
+    data = np.load(data_path)
+    data_proc = {key:None for key in data}
+    data_seg = {key:None for key in data}
 
-except FileNotFoundError:
-    keylist = data_sep.files
-    old_segments = {}
-    old_processed_data = {}
+    config_operations = config_dict['ops']
+    config_params = config_dict['params']
+    op_no_seg = [op for op in preprocess_operations if not op == "SEGMENT"]
+
+    if config_operations["LOWPASS"] == True :
+        b, a = get_filter_coeffs(**config_params["LOWPASS"])
+        config_params["LOWPASS"] = {"b" : b, "a" : a}
+
+    t1 = time.time()
+    for key,emg in data.items():
+        for op in op_no_seg:
+            if config_operations[op] == True:
+                emg = preprocess_funcs[op](emg, **config_params[op])
+
+        data_proc[key] = np.copy(emg)
+
+        if config_operations["SEGMENT"] == True:
+            data_seg[key] = get_segmentation_indices(emg,**config_params["SEGMENT"])
+
+        if key[3:] == "g49r06" :
+            print(f"'{key[:3]}' : {time.time()-t1:.2f}s")
+            t1 = time.time()
+
+    return data_proc, data_seg
 
 
-L = len(keylist)
-processed_data = {}
-segments = {}
 
-old_freq = 2000
-new_freq = 100
+
+
+preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "MIN-MAX", "M-LAW", "SEGMENT"]
+
+preprocess_funcs = {
+    "DISCARD"   :   discard_early_and_late_gest_stages,
+    "SUBSAMPLE" :   subsample,
+    "LOWPASS"   :   applyLPFilter,
+    "MIN-MAX"   :   None,
+    "M-LAW"     :   None,
+    "SEGMENT"   :   get_segmentation_indices
+}
+
+
+if __name__ == "__main__":
+    config = helper_functions.get_config_from_json_file(mode="preproc", filename='db2_lpf')
+    data_dir_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, r'db2_rms_200\db2_rms_200.npz')
+    data_proc, segments = apply_preprocessing(data_dir_path, config)
+
+    aug_config = helper_functions.get_config_from_json_file('aug','db2_awgn')
+    aug.apply_augmentation(data_proc, aug_config)
 
