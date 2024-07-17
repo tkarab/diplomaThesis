@@ -1,5 +1,8 @@
+import os.path
 import re
 import numpy as np
+import json
+import constants
 
 """
 DESCRIPTION
@@ -69,3 +72,40 @@ DESCRIPTION
 """
 def get_rmsRect_dirname(db, win_size_ms):
     return f"db{db}_rms_{win_size_ms}"
+
+
+"""
+DESCRIPTION
+    For getting the full name of a configuration .json file (either for preprocessing, augmentation or training).
+    depending on the mode the full filename is "config_{mode}_{filename}.json where filename usually includes info
+    regarding the database if it is referring to a specific one
+
+PARAMETERS
+    mode : "preproc", "aug" or "train"
+"""
+def get_config_full_filename(mode, name):
+    return f"config_{mode}_{name}.json"
+
+"""
+DESCRIPTION
+    Loads and returns configuration data for either preprocessing, augmentation or training.
+    Data is in the form of a jason file and the returning value is a dict
+    
+PARAMETERS
+    mode : "preproc", "aug" or "train"
+    filename : name of the file without the 'config_preproc' prefix of the '.json' postfix 
+"""
+def get_config_from_json_file(mode, filename):
+    full_filename = get_config_full_filename(mode, filename)
+    if mode == "preproc":
+        dir_path = constants.DATA_CONFIG_PATH_PREPROC
+    elif mode == "aug" :
+        dir_path = constants.DATA_CONFIG_PATH_AUG
+    elif mode == "train" :
+        return None
+    else:
+        return None
+
+    with open(os.path.join(dir_path,full_filename)) as file:
+        config = json.load(file)
+        return config
