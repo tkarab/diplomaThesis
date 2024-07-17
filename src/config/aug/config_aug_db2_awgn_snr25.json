@@ -1,0 +1,12 @@
+{
+    "config": {
+        "AWGN": true,
+        "FLIP": false
+    },
+    "params": {
+        "AWGN": {
+            "snr_db": 25
+        },
+        "FLIP": null
+    }
+}
