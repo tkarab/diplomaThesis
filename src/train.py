@@ -62,10 +62,10 @@ k = 3
 
 #model
 # model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
-model = model_assembly.assemble_model_timeDist(cnn_backbone, inp_shape)
+model = model_assembly.assemble_protonet_timeDist(cnn_backbone, inp_shape)
 model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])#, run_eagerly=True)
 
-model2 = model_assembly.assemble_model_reshape(cnn_backbone, inp_shape, way=N, shot=k)
+model2 = model_assembly.assemble_protonet_reshape(cnn_backbone, inp_shape, way=N, shot=k)
 model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
 train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=iterations_per_epoch, print_labels=True, print_lebels_frequency=5)
