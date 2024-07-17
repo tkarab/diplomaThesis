@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import constants
+import helper_functions as h
 import random
 import plot_functions
 import time
@@ -21,15 +22,6 @@ CODE NAMES FOR EACH AUGMENTATION PROCESS
     
     
 """
-
-processed_data_path = constants.PROCESSED_DATA_PATH_DB2
-processed_data_filename = os.path.join(processed_data_path,'db2_processed.npz')
-
-aug_config = {
-    "AWGN" : True
-}
-
-SNR = 25
 
 # Functions
 def addGaussianNoise(emg:np.ndarray, snr_db:int = 25):
@@ -55,31 +47,37 @@ def addGaussianNoise(emg:np.ndarray, snr_db:int = 25):
 
     return np.expand_dims(emg_n,-1)
 
+def apply_augmentation(data, config_dict:dict):
+    print("Performing Data Augmentation...\n")
+    data_aug = {key: None for key in data}
+    ops = config_dict['ops']
+    params = config_dict['params']
+
+    t1 = time.time()
+    for key,emg in data.items():
+
+        for op in [op for op in augmentation_operations if ops[op] == True]:
+            emg = augmentation_funcs[op](emg, **params[op])
+        data_aug[key] = np.copy(emg)
+
+        if key[3:] == 'g49r06' :
+            print(f"'{key[:3]}' : {time.time()-t1:.2f}s")
+            t1 = time.time()
+
+    print("Augmentation done")
+    return data_aug
+
+
+augmentation_operations = ["AWGN", "FLIP"]
+augmentation_funcs = {
+    "AWGN" : addGaussianNoise,
+    "FLIP" : None
+}
 
 # Main
-
-# If the 'aug' folder is not in the directory of the processed data then it is created
-if 'aug' not in os.listdir(processed_data_path):
-    os.mkdir(os.path.join(processed_data_path,'aug'))
-
-data_proc = np.load(processed_data_filename)
-keys = data_proc.files
-augmented_data = {}
-
-t_start = time.time()
-for i,key in enumerate(keys):
-    emg = data_proc[key]
-
-    """
-    Applying the function necessary for each operation
-    """
-    # AWGN
-    if aug_config['AWGN'] == True:
-        emg_aug = addGaussianNoise(emg, 25)
-        augmented_data[key] = emg_aug
-
-    print(f"key {i+1}/{len(keys)}")
-
+if __name__ == "__main__" :
+    config_dict = h.get_config_from_json_file('aug', 'db2_awgn')
+    apply_augmentation(np.load(os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')), config_dict)
 
 
 

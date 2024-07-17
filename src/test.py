@@ -15,7 +15,7 @@ def getKeys(*entries:tuple):
 
 DATABASE = 2
 
-preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "MIN-MAX", "M-LAW"]
+
 
 preprocess_config = {
     "SUBSAMPLE" :   True,
@@ -25,14 +25,7 @@ preprocess_config = {
     "M-LAW"     :   False,
     "SEGMENT"   :   True
 }
-preprocess_funcs = {
-    "DISCARD"   :   pr.discard_early_and_late_gest_stages,
-    "SUBSAMPLE" :   pr.subsample,
-    "LOWPASS"   :   pr.applyLPFilter,
-    "MIN-MAX"   :   None,
-    "M-LAW"     :   None,
-    "SEGMENT"   :   pr.get_segmentation_indices
-}
+
 preprocess_params = {
     "DISCARD"   :   {"num_samples_to_keep" : 3.5*100},
     "SUBSAMPLE" :   {"init_freq" : 2000, "new_freq" : 100},
@@ -44,7 +37,6 @@ preprocess_params = {
 
 separated_data_filename = os.path.join(constants.SEPARATED_DATA_PATH,f'db{DATABASE}.npz')
 
-operations_to_perform = [op for op in preprocess_operations if preprocess_config[op] == True]
 
 data_sep_raw = np.load(separated_data_filename)
 data_proc = {}
