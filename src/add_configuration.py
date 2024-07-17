@@ -2,6 +2,7 @@ import json
 import constants
 import os
 import sys
+from helper_functions import get_config_full_filename
 
 # PREPROCESSING
 preprocess_config = {
@@ -36,29 +37,31 @@ augmentation_params = {
 """
 
 PARAETERS
-    mode : "preprocess" or "augment"
+    mode : "preprocess", "augment" or "train"
     filename : name of the file. Should be something along the lines of: 'config_preproc_db2_nofilt.json'
                'config_preproc_' is added automatically by choosing preprocess mode.
                Next should be the name of the database and after that something characteristic of the 
                specific configuration
                
-               Prefixes are : 'config_preproc_' for preprocessing and 'config_aug_' for augment
 """
 def save_config(mode:str, filename:str):
-    if mode == "preprocess" :
-        config_dict = {"config" : preprocess_config, "params" : preprocess_params}
-        full_filename = 'config_preproc_' + filename + '.json'
+    if mode == "preproc" :
+        config_dict = {"ops" : preprocess_config, "params" : preprocess_params}
+        full_filename = get_config_full_filename(mode='preproc', name=filename)
         path = os.path.join(constants.DATA_CONFIG_PATH_PREPROC, full_filename)
 
-    elif mode == "augment" :
-        config_dict = {"config": augmentation_config, "params": augmentation_params}
-        full_filename = 'config_aug_' + filename + '.json'
+    elif mode == "aug" :
+        config_dict = {"ops": augmentation_config, "params": augmentation_params}
+        full_filename = get_config_full_filename(mode='aug', name=filename)
         path = os.path.join(constants.DATA_CONFIG_PATH_AUG,full_filename)
+
+    elif mode == "train" :
+        return
 
     with open(path, 'w') as file:
         json.dump(config_dict, file, indent=4)
 
-# mode : either "preprocess" or "augment"
+# mode : either "preproc" or "aug"
 if __name__ == "__main__":
-    mode = "augment"
-    save_config(mode, "db2_awgn_snr25")
+    mode = "preproc"
+    save_config(mode, "db2_lpf")

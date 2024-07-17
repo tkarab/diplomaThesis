@@ -69,3 +69,16 @@ DESCRIPTION
 """
 def get_rmsRect_dirname(db, win_size_ms):
     return f"db{db}_rms_{win_size_ms}"
+
+
+"""
+DESCRIPTION
+    For getting the full name of a configuration .json file (either for preprocessing, augmentation or training).
+    depending on the mode the full filename is "config_{mode}_{filename}.json where filename usually includes info
+    regarding the database if it is referring to a specific one
+
+PARAMETERS
+    mode : "preproc", "aug" or "train"
+"""
+def get_config_full_filename(mode, name):
+    return f"config_{mode}_{name}.json"
