@@ -5,8 +5,28 @@ import keras
 import random
 import constants
 import os
-import helper_functions
+import helper_functions as hlp
+import preprocessing
+import data_augmentation as aug
 
+
+class DataFileInfoProvider:
+    def __init__(self, db, rms):
+        if db == 2:
+            self.data_directory = os.path.join(constants.PROCESSED_DATA_PATH_DB2, hlp.get_rmsRect_dirname(db, rms))
+            self.data_filepath = os.path.join(self.data_directory, hlp.get_rmsRect_dirname(db, rms)+'.npz')
+        elif db == 1:
+            self.data_directory = constants.PROCESSED_DATA_PATH_DB1
+            self.data_filepath = os.path.join(self.data_directory,'db1_raw.npz')
+        elif db == 5:
+            self.data_directory = constants.PROCESSED_DATA_PATH_DB5
+            self.data_filepath = os.path.join(self.data_directory,'db5_raw.npz')
+
+    def getDirectoryPath(self):
+        return self.data_directory
+
+    def getDataFullPath(self):
+        return self.data_filepath
 
 
 """
@@ -17,16 +37,27 @@ PARAMETERS
     
 
 """
-
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,channels:int,  apply_preprocessing:bool, preprocessing_config:dict,apply_aug:bool, aug_config:dict, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, rms_win_size:int=200, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.channels = channels
-        self.window_size = window_size
+        self.db = database
+
+        self.preproc_config = preprocessing_config
+        self.window_size = self.preproc_config['params']['SEGMENT']['window_size']
+        self.rms_win_size = rms_win_size
+        self.dataFileInfoProvider = DataFileInfoProvider(self.db, self.rms_win_size)
+
+        self.aug_enabled = aug_enabled
+        if self.aug_enabled == True:
+            self.aug_config = aug_config
+            self.data_aug = {}
+
         self.getData()
+        self.channels = self.getNumberOfChannels()
+
         self.batches = batches
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
@@ -59,18 +90,22 @@ class TaskGenerator(utils.Sequence):
 
         return
 
-    def getData(self, path = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_processed.npz"):
-        # path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_ex{}_{}.npz'.format(self.experiment[0], self.mode)
-        path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')
-        seg_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_segments.npz')
-        self.data = np.load(path)
-        self.segments = np.load(seg_path)
+    def getData(self):
+        self.data, self.segments = preprocessing.apply_preprocessing(self.dataFileInfoProvider.getDataFullPath(), self.preproc_config)
+
+        if self.aug_enabled:
+            self.data_aug = aug.apply_augmentation(self.data, self.aug_config)
+
+    def getNumberOfChannels(self):
+        random_key = random.choice(self.data.files())
+        random_sample = self.data[random_key]
+        return random_sample.shape[1]
 
     def getKeys(self,*entries:tuple) -> list:
-        return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
+        return [hlp.getKey(s,g,r) for s,r,g in entries]
 
     def getKeys_in_order(self,*entries:tuple) -> list:
-        return ['s{}g{}r{}'.format(s,g,r) for s,g,r in entries]
+        return [hlp.getKey(s,g,r) for s,g,r in entries]
 
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]

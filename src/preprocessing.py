@@ -92,7 +92,7 @@ def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
 
 
 def apply_preprocessing(data_path, config_dict:dict):
-
+    print("Performing preprocessing...\n")
     data = np.load(data_path)
     data_proc = {key:None for key in data}
     data_seg = {key:None for key in data}
@@ -119,7 +119,7 @@ def apply_preprocessing(data_path, config_dict:dict):
         if key[3:] == "g49r06" :
             print(f"'{key[:3]}' : {time.time()-t1:.2f}s")
             t1 = time.time()
-
+    print("Preprocessing finished\n\n")
     return data_proc, data_seg
 
 

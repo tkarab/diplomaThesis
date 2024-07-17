@@ -8,6 +8,7 @@ from tensorflow.keras.layers import Lambda
 from task_generator import TaskGenerator
 import numpy as np
 import model_assembly
+import helper_functions
 
 def print_array(array, name:str):
     print(f'\t-- {name}\n')
@@ -68,7 +69,14 @@ model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0
 model2 = model_assembly.assemble_protonet_reshape(cnn_backbone, inp_shape, way=N, shot=k)
 model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
+
+db = 2
+rms = 200
+preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_nofilter')
+aug_enabled = True
+aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
+
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
