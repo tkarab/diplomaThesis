@@ -9,9 +9,17 @@ import helper_functions
 
 
 
+"""
+DESCRIPTION
+
+PARAMETERS
+    database: 1,2 or 5
+    
+
+"""
 
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=15, batches: int = 1000, print_labels = False, print_lebels_frequency = 100):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,channels:int,  apply_preprocessing:bool, preprocessing_config:dict,apply_aug:bool, aug_config:dict, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -21,7 +29,7 @@ class TaskGenerator(utils.Sequence):
         self.getData()
         self.batches = batches
         self.print_labels = print_labels
-        self.print_label_freq = print_lebels_frequency
+        self.print_label_freq = print_labels_frequency
 
 
         if self.experiment == '1':

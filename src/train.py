@@ -68,7 +68,7 @@ model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0
 model2 = model_assembly.assemble_protonet_reshape(cnn_backbone, inp_shape, way=N, shot=k)
 model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=iterations_per_epoch, print_labels=True, print_lebels_frequency=5)
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
