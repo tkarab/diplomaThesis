@@ -6,6 +6,7 @@ import random
 import constants
 import os
 import helper_functions as hlp
+from plot_functions import *
 import preprocessing
 import data_augmentation as aug
 
@@ -97,7 +98,7 @@ class TaskGenerator(utils.Sequence):
             self.data_aug = aug.apply_augmentation(self.data, self.aug_config)
 
     def getNumberOfChannels(self):
-        random_key = random.choice(self.data.files())
+        random_key = random.choice(list(self.data.keys()))
         random_sample = self.data[random_key]
         return random_sample.shape[1]
 
@@ -121,7 +122,10 @@ class TaskGenerator(utils.Sequence):
     def get_segment_of_semg(self, key):
         segment_start = random.choice(self.segments[key])
         indices = np.arange(segment_start, segment_start+self.window_size)
-        x = np.take(self.data[key],indices,axis=0)
+        if not self.aug_enabled:
+            x = np.take(self.data[key],indices,axis=0)
+        else:
+            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1],p=[0.7,0.3])],indices,axis=0)
         # x = np.expand_dims(x,axis=-1)
         return x
 
@@ -146,7 +150,7 @@ class TaskGenerator(utils.Sequence):
         # gest_key_list contains all the keys for the i-th category
         # i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
         #  ['s1g5r2', 's3g5r3', 's12g5r4']
-        # Each key corresponds to a Lx12x15x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
+        # Each key corresponds to a Lx15X12x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
         # For each movement one segment is chosen randomly
         for i,gest_key_list in enumerate(key_list):
             shots = [self.get_segment_of_semg(key) for key in gest_key_list]
