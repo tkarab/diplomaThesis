@@ -14,7 +14,7 @@ PARAMETERS:
     - nn_backbone: a keras Sequential model corresponding to the neural network which serves as the backbone of the few-shot learning model. Depending on the approach this could be a CNN, a TCN, a transformer etc
     - input_shape: a tuple containing the shape of the input data of the model. i.e. (15,12,1) 
 """
-def assemble_model_timeDist(nn_backbone, input_shape:tuple):
+def assemble_protonet_timeDist(nn_backbone, input_shape:tuple):
     layer_time_dist = layers.TimeDistributed(nn_backbone, name="Time_Distributed")
 
     # tuple of 2d input set shape containing one extra dimension
@@ -40,7 +40,7 @@ DESCRIPTION
     images of size 15x12 and will all be processed simultaneously. 
     This will produces the 15 embeddings which will then be reshaped into the original 5x3 shape again
 """
-def assemble_model_reshape(nn_backbone, input_shape:tuple, way:int, shot:int):
+def assemble_protonet_reshape(nn_backbone, input_shape:tuple, way:int, shot:int):
     input_shape_5d = (None,) + input_shape
     layer_support_set_input = layers.Input(input_shape_5d, name="Support_Set_Input")
     layer_query_set_input = layers.Input(input_shape, name="Query_Set_Input")

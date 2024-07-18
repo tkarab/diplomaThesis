@@ -92,7 +92,7 @@ def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
 
 
 def apply_preprocessing(data_path, config_dict:dict):
-
+    print("Performing preprocessing...\n")
     data = np.load(data_path)
     data_proc = {key:None for key in data}
     data_seg = {key:None for key in data}
@@ -111,15 +111,15 @@ def apply_preprocessing(data_path, config_dict:dict):
             if config_operations[op] == True:
                 emg = preprocess_funcs[op](emg, **config_params[op])
 
-        data_proc[key] = np.copy(emg)
+        data_proc[key] = np.expand_dims(emg,-1)
 
         if config_operations["SEGMENT"] == True:
             data_seg[key] = get_segmentation_indices(emg,**config_params["SEGMENT"])
 
         if key[3:] == "g49r06" :
-            print(f"'{key[:3]}' : {time.time()-t1:.2f}s")
+            print(f"{key[:3]}/{len(data.items())//294} : {time.time()-t1:.2f}s")
             t1 = time.time()
-
+    print("\n...preprocessing has finished\n")
     return data_proc, data_seg
 
 
