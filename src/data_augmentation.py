@@ -61,10 +61,10 @@ def apply_augmentation(data, config_dict:dict):
         data_aug[key] = np.copy(emg)
 
         if key[3:] == 'g49r06' :
-            print(f"'{key[:3]}' : {time.time()-t1:.2f}s")
+            print(f"{key[:3]}/{len(data.items())//294} : {time.time()-t1:.2f}s")
             t1 = time.time()
 
-    print("Augmentation done")
+    print("\n...augmentation has finished")
     return data_aug
 
 

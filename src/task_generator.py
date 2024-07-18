@@ -5,23 +5,63 @@ import keras
 import random
 import constants
 import os
-import helper_functions
+import helper_functions as hlp
+from plot_functions import *
+import preprocessing
+import data_augmentation as aug
 
 
+class DataFileInfoProvider:
+    def __init__(self, db, rms):
+        if db == 2:
+            self.data_directory = os.path.join(constants.PROCESSED_DATA_PATH_DB2, hlp.get_rmsRect_dirname(db, rms))
+            self.data_filepath = os.path.join(self.data_directory, hlp.get_rmsRect_dirname(db, rms)+'.npz')
+        elif db == 1:
+            self.data_directory = constants.PROCESSED_DATA_PATH_DB1
+            self.data_filepath = os.path.join(self.data_directory,'db1_raw.npz')
+        elif db == 5:
+            self.data_directory = constants.PROCESSED_DATA_PATH_DB5
+            self.data_filepath = os.path.join(self.data_directory,'db5_raw.npz')
+
+    def getDirectoryPath(self):
+        return self.data_directory
+
+    def getDataFullPath(self):
+        return self.data_filepath
 
 
+"""
+DESCRIPTION
+
+PARAMETERS
+    database: 1,2 or 5
+    
+
+"""
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str,channels:int=12, window_size:int=15, batches: int = 1000, print_labels = False, print_lebels_frequency = 100):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, rms_win_size:int=200, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.channels = channels
-        self.window_size = window_size
+        self.db = database
+
+        self.preproc_config = preprocessing_config
+        self.window_size = self.preproc_config['params']['SEGMENT']['window_size']
+        self.rms_win_size = rms_win_size
+        self.dataFileInfoProvider = DataFileInfoProvider(self.db, self.rms_win_size)
+
+        self.aug_enabled = aug_enabled
+        if self.aug_enabled == True:
+            self.aug_config = aug_config
+            self.data_aug = {}
+
         self.getData()
+        self.channels = self.getNumberOfChannels()
+
         self.batches = batches
         self.print_labels = print_labels
-        self.print_label_freq = print_lebels_frequency
+        self.print_label_freq = print_labels_frequency
 
 
         if self.experiment == '1':
@@ -51,18 +91,22 @@ class TaskGenerator(utils.Sequence):
 
         return
 
-    def getData(self, path = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_processed.npz"):
-        # path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\concat\db2_ex{}_{}.npz'.format(self.experiment[0], self.mode)
-        path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')
-        seg_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_segments.npz')
-        self.data = np.load(path)
-        self.segments = np.load(seg_path)
+    def getData(self):
+        self.data, self.segments = preprocessing.apply_preprocessing(self.dataFileInfoProvider.getDataFullPath(), self.preproc_config)
+
+        if self.aug_enabled:
+            self.data_aug = aug.apply_augmentation(self.data, self.aug_config)
+
+    def getNumberOfChannels(self):
+        random_key = random.choice(list(self.data.keys()))
+        random_sample = self.data[random_key]
+        return random_sample.shape[1]
 
     def getKeys(self,*entries:tuple) -> list:
-        return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
+        return [hlp.getKey(s,g,r) for s,r,g in entries]
 
     def getKeys_in_order(self,*entries:tuple) -> list:
-        return ['s{}g{}r{}'.format(s,g,r) for s,g,r in entries]
+        return [hlp.getKey(s,g,r) for s,g,r in entries]
 
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
@@ -78,7 +122,10 @@ class TaskGenerator(utils.Sequence):
     def get_segment_of_semg(self, key):
         segment_start = random.choice(self.segments[key])
         indices = np.arange(segment_start, segment_start+self.window_size)
-        x = np.take(self.data[key],indices,axis=0)
+        if not self.aug_enabled:
+            x = np.take(self.data[key],indices,axis=0)
+        else:
+            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1],p=[0.7,0.3])],indices,axis=0)
         # x = np.expand_dims(x,axis=-1)
         return x
 
@@ -103,7 +150,7 @@ class TaskGenerator(utils.Sequence):
         # gest_key_list contains all the keys for the i-th category
         # i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
         #  ['s1g5r2', 's3g5r3', 's12g5r4']
-        # Each key corresponds to a Lx12x15x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
+        # Each key corresponds to a Lx15X12x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
         # For each movement one segment is chosen randomly
         for i,gest_key_list in enumerate(key_list):
             shots = [self.get_segment_of_semg(key) for key in gest_key_list]
