@@ -1,5 +1,5 @@
 {
-    "config": {
+    "ops": {
         "AWGN": true,
         "FLIP": false
     },
