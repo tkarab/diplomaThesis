@@ -118,10 +118,17 @@ class TaskGenerator(utils.Sequence):
         return [(s,r) for s in self.s_domain for r in self.r_domain]
 
     def __getitem__(self, index):
-        suport, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
+        support_array = []
+        query_array = []
+        labels_array = []
+        for i in range(self.batch_size):
+            support, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
+            support_array.append(support)
+            query_array.append(query)
+            labels_array.append(label)
         # print(f"~ __getitem__ ~ -> ({item})\n\n")
         # print(label)
-        return [suport, query], label
+        return [np.array(support_array), np.array(query_array)], np.array(labels_array)
     def __len__(self):
         return self.batches
 
