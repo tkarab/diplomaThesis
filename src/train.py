@@ -58,15 +58,15 @@ cnn_backbone = custom_models.AtzoriNetDB2_embedding_only(input_shape=inp_shape, 
 inp_shape_5d = (None,) + inp_shape
 
 ex = '1'
-N = 5
-k = 3
+N = 3
+k = 2
 
 #model
 # model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
 model = model_assembly.assemble_protonet_timeDist(cnn_backbone, inp_shape)
 model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])#, run_eagerly=True)
 
-model2 = model_assembly.assemble_protonet_reshape(cnn_backbone, inp_shape, way=N, shot=k)
+model2 = model_assembly.assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
 model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
 

@@ -39,7 +39,7 @@ PARAMETERS
 
 """
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, rms_win_size:int=200, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -59,6 +59,7 @@ class TaskGenerator(utils.Sequence):
         self.getData()
         self.channels = self.getNumberOfChannels()
 
+        self.batch_size = batch_size
         self.batches = batches
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency

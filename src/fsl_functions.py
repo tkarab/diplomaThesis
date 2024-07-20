@@ -6,7 +6,7 @@ import tensorflow as tf
 retu
 """
 def produce_prototype(x):
-    return tf.reduce_mean(x,axis=1)
+    return tf.reduce_mean(x,axis=-2)
 
 def reshape_query(x):
     return tf.reshape(x,[-1,tf.shape(x)[-1]])
@@ -24,7 +24,7 @@ def get_sum_of_squares(x):
 def euc_dist(args):
     prototypes, query_feat = args
 
-    return tf.sqrt(tf.reduce_sum(tf.square(prototypes-query_feat), axis=1))
+    return tf.sqrt(tf.reduce_sum(tf.square(prototypes-query_feat), axis=-1))
 
 def l2_dist(args):
     prototypes, query_feat_reshaped = args
@@ -34,7 +34,7 @@ def l2_dist(args):
     return tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
 
 def softmax_classification(args, print_result=False):
-    pred = tf.nn.softmax(-euc_dist(args))
+    pred = tf.nn.softmax(-euc_dist(args),axis=-1)
     if print_result:
         print_tensor(pred)
     return pred
