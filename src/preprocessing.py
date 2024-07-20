@@ -20,8 +20,9 @@ import data_augmentation as aug
 
     PARAMETERS
     x : np.ndarray -> the emg signal
-    window_size : int -> the window size
-    window_step : int -> the window step
+    window_size_ms : int -> the window size (in milliseconds)
+    window_step_ms : int -> the window step (- \\ -)
+    fs : the sampling rate in Hz
 
     RETURNS
     slice_start_indices : np.ndarray -> array of length N where N is the number of segments, which contains
@@ -29,7 +30,9 @@ import data_augmentation as aug
     EXAMPLE
     for a sliding window with step size 6, the starting indices of each segment should look like this: [0 6 12 18....]
 """
-def get_segmentation_indices(x: np.ndarray, window_size: int, window_step: int):
+def get_segmentation_indices(x: np.ndarray, window_size_ms: int, window_step_ms: int, fs):
+    window_size = int((window_size_ms * fs) / 1000)
+    window_step = int((window_step_ms * fs) / 1000)
     slice_start_indices = np.arange(0, len(x) - window_size + 1, window_step)
     return slice_start_indices
 

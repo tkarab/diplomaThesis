@@ -47,7 +47,7 @@ class TaskGenerator(utils.Sequence):
         self.db = database
 
         self.preproc_config = preprocessing_config
-        self.window_size = self.preproc_config['params']['SEGMENT']['window_size']
+        self.window_size = self.getWindowSize()
         self.rms_win_size = rms_win_size
         self.dataFileInfoProvider = DataFileInfoProvider(self.db, self.rms_win_size)
 
@@ -101,6 +101,11 @@ class TaskGenerator(utils.Sequence):
         random_key = random.choice(list(self.data.keys()))
         random_sample = self.data[random_key]
         return random_sample.shape[1]
+
+    def getWindowSize(self):
+        w_ms = self.preproc_config['params']['SEGMENT']['window_size_ms']
+        fs = self.preproc_config['params']['SEGMENT']['fs']
+        return int((w_ms * fs) / 1000)
 
     def getKeys(self,*entries:tuple) -> list:
         return [hlp.getKey(s,g,r) for s,r,g in entries]
