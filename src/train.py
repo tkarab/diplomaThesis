@@ -45,7 +45,7 @@ class IterationLoggingCallback(keras.callbacks.Callback):
         super().on_epoch_end(epoch, logs)
         # print('win_size: ', win_size)
 
-iterations_per_epoch = 10000
+iterations_per_epoch = 1000
 epochs = 25
 win_size = 15
 channels = 12
@@ -59,24 +59,24 @@ inp_shape_5d = (None,) + inp_shape
 
 ex = '1'
 N = 5
-k = 3
+k = 5
 
 #model
 # model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
 model = model_assembly.assemble_protonet_timeDist(cnn_backbone, inp_shape)
 model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])#, run_eagerly=True)
 
-model2 = model_assembly.assemble_protonet_reshape(cnn_backbone, inp_shape, way=N, shot=k)
+model2 = model_assembly.assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
 model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
 
 db = 2
 rms = 100
-preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_no_lpf')
+preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf')
 aug_enabled = True
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=32, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
