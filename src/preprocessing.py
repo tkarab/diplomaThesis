@@ -84,6 +84,11 @@ def applyLPFilter2(emg, fc=1, fs=100, N=1):
     f_sos = scipy.signal.butter(N=N, Wn=2 * fc / fs, btype='low', output='sos')
     return scipy.signal.sosfilt(f_sos, emg, axis=0)
 
+def minmax_norm(x):
+    max_x = np.max(x)
+    min_x = np.min(x)
+    return (x-min_x) / (max_x-min_x)
+
 
 # Keeps only a certain amount of samples from each emg, the middle seconds_to_keep ones
 def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
@@ -129,14 +134,14 @@ def apply_preprocessing(data_path, config_dict:dict):
 
 
 
-preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "MIN-MAX", "M-LAW", "SEGMENT"]
+preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "M-LAW", "MIN-MAX", "SEGMENT"]
 
 preprocess_funcs = {
     "DISCARD"   :   discard_early_and_late_gest_stages,
     "SUBSAMPLE" :   subsample,
     "LOWPASS"   :   applyLPFilter,
-    "MIN-MAX"   :   None,
     "M-LAW"     :   None,
+    "MIN-MAX"   :   minmax_norm,
     "SEGMENT"   :   get_segmentation_indices
 }
 

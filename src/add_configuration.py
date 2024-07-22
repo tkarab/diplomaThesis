@@ -13,14 +13,13 @@ preprocess_config = {
                      "params" : {"seconds_to_keep" : 3.5, "fs" : 100}},
 
     "LOWPASS"   :   {"enable" : False,
-                     # "params" : None},
                      "params" : {"fc": 1, "fs": 100, "N": 1}},
 
     "MIN-MAX"   :   {"enable" : False,
-                     "params" : None},
+                     "params" : {}},
 
     "M-LAW"     :   {"enable" : False,
-                     "params" : None},
+                     "params" : {}},
 
     "SEGMENT"   :   {"enable" : True ,
                      "params" : {"window_size_ms" : 150, "window_step_ms" : 60, "fs" : 100}}
@@ -74,4 +73,4 @@ def save_config(mode:str, filename:str):
 # mode : either "preproc" or "aug"
 if __name__ == "__main__":
     mode = "preproc"
-    save_config(mode, "db2_lpf")
+    save_config(mode, "db2_no_lpf")
