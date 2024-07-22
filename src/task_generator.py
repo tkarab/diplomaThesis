@@ -56,7 +56,8 @@ class TaskGenerator(utils.Sequence):
             self.aug_config = aug_config
             self.data_aug = {}
 
-        self.getData()
+        self.get__data()
+        self.keyAppDict = self.get_key_app_dict()
         self.channels = self.getNumberOfChannels()
 
         self.batch_size = batch_size
@@ -92,11 +93,21 @@ class TaskGenerator(utils.Sequence):
 
         return
 
-    def getData(self):
+    def get__data(self):
         self.data, self.segments = preprocessing.apply_preprocessing(self.dataFileInfoProvider.getDataFullPath(), self.preproc_config)
 
         if self.aug_enabled:
             self.data_aug = aug.apply_augmentation(self.data, self.aug_config)
+
+    def get_key_app_dict(self):
+        keyAppDict = {}
+        for key in self.data.keys():
+            if self.aug_enabled:
+                keyAppDict[key] = [0,0]
+            else:
+                keyAppDict[key] = 0
+        return keyAppDict
+
 
     def getNumberOfChannels(self):
         random_key = random.choice(list(self.data.keys()))
@@ -116,6 +127,9 @@ class TaskGenerator(utils.Sequence):
 
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
+
+    def plotKeyAppHist(self):
+        plotDictBar(self.keyAppDict)
 
     def __getitem__(self, index):
         support_array = []
@@ -137,8 +151,11 @@ class TaskGenerator(utils.Sequence):
         indices = np.arange(segment_start, segment_start+self.window_size)
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
+            self.keyAppDict[key] += 1
         else:
-            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1])],indices,axis=0)
+            ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
+            x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
+            self.keyAppDict[key][ind] += 1
         # x = np.expand_dims(x,axis=-1)
         return x
 
