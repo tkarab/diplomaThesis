@@ -130,7 +130,7 @@ class TaskGenerator(utils.Sequence):
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
         else:
-            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1],p=[0.7,0.3])],indices,axis=0)
+            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1])],indices,axis=0)
         # x = np.expand_dims(x,axis=-1)
         return x
 
