@@ -39,7 +39,7 @@ PARAMETERS
 
 """
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, rms_win_size:int=200, batches: int = 1000, print_labels = False, print_labels_frequency = 100):
+    def __init__(self, experiment:str, way:int, shot:int, mode:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -56,9 +56,11 @@ class TaskGenerator(utils.Sequence):
             self.aug_config = aug_config
             self.data_aug = {}
 
-        self.getData()
+        self.get__data()
+        self.keyAppDict = self.get_key_app_dict()
         self.channels = self.getNumberOfChannels()
 
+        self.batch_size = batch_size
         self.batches = batches
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
@@ -91,11 +93,21 @@ class TaskGenerator(utils.Sequence):
 
         return
 
-    def getData(self):
+    def get__data(self):
         self.data, self.segments = preprocessing.apply_preprocessing(self.dataFileInfoProvider.getDataFullPath(), self.preproc_config)
 
         if self.aug_enabled:
             self.data_aug = aug.apply_augmentation(self.data, self.aug_config)
+
+    def get_key_app_dict(self):
+        keyAppDict = {}
+        for key in self.data.keys():
+            if self.aug_enabled:
+                keyAppDict[key] = [0,0]
+            else:
+                keyAppDict[key] = 0
+        return keyAppDict
+
 
     def getNumberOfChannels(self):
         random_key = random.choice(list(self.data.keys()))
@@ -116,11 +128,21 @@ class TaskGenerator(utils.Sequence):
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
 
+    def plotKeyAppHist(self):
+        plotDictBar(self.keyAppDict)
+
     def __getitem__(self, index):
-        suport, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
+        support_array = []
+        query_array = []
+        labels_array = []
+        for i in range(self.batch_size):
+            support, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
+            support_array.append(support)
+            query_array.append(query)
+            labels_array.append(label)
         # print(f"~ __getitem__ ~ -> ({item})\n\n")
         # print(label)
-        return [suport, query], label
+        return [np.array(support_array), np.array(query_array)], np.array(labels_array)
     def __len__(self):
         return self.batches
 
@@ -129,8 +151,11 @@ class TaskGenerator(utils.Sequence):
         indices = np.arange(segment_start, segment_start+self.window_size)
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
+            self.keyAppDict[key] += 1
         else:
-            x = np.take([self.data[key], self.data_aug[key]][np.random.choice([0,1],p=[0.7,0.3])],indices,axis=0)
+            ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
+            x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
+            self.keyAppDict[key][ind] += 1
         # x = np.expand_dims(x,axis=-1)
         return x
 
