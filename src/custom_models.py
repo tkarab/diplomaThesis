@@ -171,7 +171,9 @@ def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = True, dro
     # Layer 1: Padding (0,5) -> Conv2D [32 x (1,12)] -> ReLU
     # Input:  (15,12,1)
     # Output: (15,11,32)
-    X = layers.ZeroPadding2D(padding=(0, 5))(X_inp)
+    # X = layers.BatchNormalization(X_inp)
+    X = layers.BatchNormalization()(X_inp)
+    X = layers.ZeroPadding2D(padding=(0, 5))(X)
     X = layers.Conv2D(filters=32, kernel_size=(1, 12), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
     if add_dropout == True:
         X = layers.Dropout(dropout_pct)(X)
@@ -179,6 +181,7 @@ def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = True, dro
     # Layer 2: Padding (1,1) -> Conv2D [32 x (3,3)] -> ReLU -> AvgPooling(3,3)
     # Input:  (15,11,32)
     # Output: (5,3,32)
+    X = layers.BatchNormalization()(X)
     X = layers.ZeroPadding2D(padding=(1, 1))(X)
     X = layers.Conv2D(filters=32, kernel_size=(3, 3), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
     if add_dropout == True:
@@ -188,6 +191,7 @@ def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = True, dro
     # Layer 3: Padding (2,2) -> Conv2D [64 x (5,5)] -> ReLU -> AvgPooling(3,3)
     # Input:  (5,3,32)
     # Output: (1,1,64)
+    X = layers.BatchNormalization()(X)
     X = layers.ZeroPadding2D(padding=(2, 2))(X)
     X = layers.Conv2D(filters=64, kernel_size=(5, 5), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
     if add_dropout == True:
@@ -198,6 +202,7 @@ def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = True, dro
     # The Output is a vector of length 64 corresponding to the input image
     # Input:  (1,1,64)
     # Output: (1,1,64)
+    X = layers.BatchNormalization()(X)
     X = layers.ZeroPadding2D(padding=(4, 0))(X)
     X = layers.Conv2D(filters=64, kernel_size=(9, 1), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
     if add_dropout == True:

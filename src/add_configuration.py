@@ -46,7 +46,7 @@ augmentation_params = {key : augmentation_config[key]["params"] for key in augme
 
 """
 
-PARAETERS
+PARAMETERS
     mode : "preprocess", "augment" or "train"
     filename : name of the file. Should be something along the lines of: 'config_preproc_db2_nofilt.json'
                'config_preproc_' is added automatically by choosing preprocess mode.
