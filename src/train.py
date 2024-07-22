@@ -72,7 +72,7 @@ model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(
 
 db = 2
 rms = 100
-preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_no_lpf')
+preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf_minmax')
 aug_enabled = True
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
 
