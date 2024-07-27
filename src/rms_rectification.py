@@ -49,7 +49,7 @@ PARAMETERS
     fs: sampling rate (2000 for DB2)
     win_size_ms: window size in milliseconds
 """
-def rmsRect2(x:np.ndarray, fs = 2000, win_size_ms=200):
+def rmsRect(x:np.ndarray, fs = 2000, win_size_ms=200):
     emg_rect = np.zeros(x.shape)
     W = int(win_size_ms*fs/1000)
 
@@ -120,7 +120,7 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
     t1 = time.time()
     for i, key in enumerate(remaining_keys):
         emg = data_sep_raw[key]
-        emg_rms = rmsRect2(emg, win_size_ms=win_size_ms, fs=fs)
+        emg_rms = rmsRect(emg, win_size_ms=win_size_ms, fs=fs)
 
         data_rms[key] = np.copy(emg_rms)
         if (key[3:] == 'g49r06'):
