@@ -109,3 +109,14 @@ def get_config_from_json_file(mode, filename):
     with open(os.path.join(dir_path,full_filename)) as file:
         config = json.load(file)
         return config
+
+
+"""
+DESCRIPTION
+    Returns the full filename of the .csv file where all the tasks for a given experiment exist
+    It is something along the lines of ex{experiment}_{N}way_{k}shot.csv
+    For the full path the FileInfoProvider in TaskGenerator takes care of it
+    
+"""
+def get_tasks_filename(ex,N,k):
+    return f'ex{ex}_{N}way_{k}shot.csv'

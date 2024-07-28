@@ -77,7 +77,7 @@ preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf_
 aug_enabled = True
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=32, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake='csv',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=32, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
