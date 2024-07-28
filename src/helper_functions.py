@@ -116,7 +116,9 @@ DESCRIPTION
     Returns the full filename of the .csv file where all the tasks for a given experiment exist
     It is something along the lines of ex{experiment}_{N}way_{k}shot.csv
     For the full path the FileInfoProvider in TaskGenerator takes care of it
-    
+
+PARAMETERS
+    - mode : 'train', 'test' or 'val'
 """
-def get_tasks_filename(ex,N,k):
-    return f'ex{ex}_{N}way_{k}shot.csv'
+def get_tasks_filename(ex,N,k, mode):
+    return f'ex{ex}_{N}way_{k}shot_{mode}.csv'
