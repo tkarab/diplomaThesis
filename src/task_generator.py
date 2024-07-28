@@ -73,7 +73,9 @@ class TaskGenerator(utils.Sequence):
 
         # Only used if data_intake == 'csv'
         self.support_keys = []
+        self.support_seg_start = []
         self.query_keys = []
+        self.query_seg_start = []
         self.query_gest_indices = []
 
         self.get__data()
@@ -105,9 +107,10 @@ class TaskGenerator(utils.Sequence):
             self.r_domain = list(range(1, 7))
             self.s_r_pairs = self.get_s_r_pairs()
 
-
         if self.data_intake == "csv":
+            t1 = time.time()
             self.load_tasks_from_file()
+            print(f"total time for loading tasks : {time.time()-t1:.2f}")
             self.task_generator = self.get_premade_keys
         else:
             if self.experiment == '2a':
@@ -123,8 +126,6 @@ class TaskGenerator(utils.Sequence):
 
         return [support_batch, query_batch], labels_batch
 
-        # return [np.array(support_array), np.array(query_array)], np.array(labels_array)
-
     def __len__(self):
         return self.batches_per_epoch
 
@@ -138,30 +139,21 @@ class TaskGenerator(utils.Sequence):
         full_path = self.fileInfoProvider.getTasksFileFullPath()
         print('Loading tasks...')
 
-        t1 = time.time()
+        df = pd.read_csv(full_path)
+        s_keys = df.iloc[:,:-3:2]
+        s_seg = df.iloc[:,1:-3:2]
+        q_keys = df.iloc[:,-3]
+        q_seg = df.iloc[:,-2]
+        q_label = df.iloc[:,-1]
 
-        with open(full_path,'r',newline='') as file:
+        self.support_keys = np.reshape(s_keys.to_numpy(),[len(s_seg),self.way,self.shot])
+        self.support_seg_start = np.reshape(s_seg.to_numpy(dtype=np.int32),[len(s_seg),self.way,self.shot])
 
-            rows = sum(1 for line in csv.reader(file))
-            self.support_keys = np.empty([rows, self.way, self.shot],dtype='U9')
-            self.query_keys = np.empty([rows],dtype='U9')
-            self.query_gest_indices = np.empty([rows],dtype='i4')
-            file.seek(0)
-            reader = csv.reader(file)
+        self.query_keys = q_keys.to_numpy()
+        self.query_seg_start = q_seg.to_numpy()
+        self.query_gest_indices = q_label.to_numpy()
 
-            for j,task_line in enumerate(reader):
-                query_gest_index = int(task_line.pop())
-                query_key = task_line.pop()
-                support_set_keys = self.reshape_support_set(task_line)
-
-                self.support_keys[j] = support_set_keys
-                self.query_keys[j] = query_key
-                self.query_gest_indices[j] = query_gest_index
-
-                if(j%10000 == 0):
-                    print(f"{j}/{rows} : {time.time()-t1:.2f}")
-
-        print("...tasks have been loaded.")
+        print("\n...tasks have been loaded.")
 
     def reshape_support_set(self,support_flattened):
         support_set = []
@@ -279,10 +271,13 @@ class TaskGenerator(utils.Sequence):
 
     def get_premade_keys(self,index):
         ind = np.arange(index*self.batch_size, (index+1)*self.batch_size)
-        support = self.support_keys[ind]
-        query = self.query_keys[ind]
+        support_keys = self.support_keys[ind]
+        query_keys = self.query_keys[ind]
+        support_seg = self.support_seg_start[ind]
+        query_seg = self.query_seg_start[ind]
         gest_ind = self.query_gest_indices[ind]
-        return support, query, gest_ind
+
+        return support_keys, query_keys, gest_ind, support_seg, query_seg
 
     def get_task_data_based_on_keys(self, support_keys, query_keys, query_gesture_indices, support_seg_starting_indices, query_seg_starting_indices):
         support_set_batch = []
@@ -331,7 +326,7 @@ PARAMETERS
     - mode : 'train', 'test' or 'val'
 """
 def save_tasks(task_lines,db,experiment,way,shot,mode):
-    with open(os.path.join(f'tasks/DB{db}',f'ex{experiment}_{way}way_{shot}shot.csv'),'w', newline='') as file:
+    with open(os.path.join(f'tasks/DB{db}',get_tasks_filename(ex=experiment,N=way,k=shot,mode=mode)),'w', newline='') as file:
         writer = csv.writer(file)
         for task in task_lines:
             writer.writerow(task)
@@ -349,7 +344,7 @@ if __name__ == '__main__':
 
     t1 = time.time()
     task_lines = np.empty([1 + num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
-    task_lines[0] = [num_batches*batch_size] + ['']*2*(way*shot+1)
+    task_lines[0] = [el for i in range(way) for j in range(shot) for el in (f"class{i+1}_ex{j+1}_key", f"class{i+1}_ex{j+1}_seg")] + ['query_key','query_seg','label']
 
     print("Preparing tasks...")
     for i in range(num_batches):
