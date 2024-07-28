@@ -70,7 +70,7 @@ class TaskGenerator(utils.Sequence):
             self.s_domain = list(range(1,41))
             self.g_domain = list(range(1,50))
             self.r_domain = {'train':[1,3,4,6], 'test':[2,5]}[self.mode]
-            self.task_generator = self.generate_task_1
+            self.task_generator = self.generate_task_keys
             self.s_r_pairs = self.get_s_r_pairs()
 
         elif self.experiment in ['2a', '2b']:
@@ -79,16 +79,16 @@ class TaskGenerator(utils.Sequence):
             self.r_domain = list(range(1,7))
 
             if experiment == '2a':
-                self.task_generator = self.generate_task_2a
+                self.task_generator = self.generate_task_keys_2a
             else:
-                self.task_generator = self.generate_task_1
+                self.task_generator = self.generate_task_keys
                 self.s_r_pairs = self.get_s_r_pairs()
 
         elif self.experiment == '3':
             self.s_domain = list(range(1, 41))
             self.g_domain = {'train': list(range(1,35)), 'val': list(range(35,41)), 'test': list(range(41,50))}[self.mode]
             self.r_domain = list(range(1, 7))
-            self.task_generator = self.generate_task_1
+            self.task_generator = self.generate_task_keys
             self.s_r_pairs = self.get_s_r_pairs()
 
         return
@@ -132,17 +132,12 @@ class TaskGenerator(utils.Sequence):
         plotDictBar(self.keyAppDict)
 
     def __getitem__(self, index):
-        support_array = []
-        query_array = []
-        labels_array = []
-        for i in range(self.batch_size):
-            support, query, label = self.task_generator(index)  # activates either generate_task_1() or generate_task_2a() depending on the experiment
-            support_array.append(support)
-            query_array.append(query)
-            labels_array.append(label)
-        # print(f"~ __getitem__ ~ -> ({item})\n\n")
-        # print(label)
-        return [np.array(support_array), np.array(query_array)], np.array(labels_array)
+        all_keys = self.task_generator()
+        support_batch, query_batch, labels_batch = self.get_task_data_based_on_keys(*all_keys)
+
+        return [support_batch, query_batch], labels_batch
+
+        # return [np.array(support_array), np.array(query_array)], np.array(labels_array)
     def __len__(self):
         return self.batches
 
@@ -156,77 +151,178 @@ class TaskGenerator(utils.Sequence):
             ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
             x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
             self.keyAppDict[key][ind] += 1
-        # x = np.expand_dims(x,axis=-1)
+
         return x
 
-    def generate_task_1(self, index):
-        key_list = []
-        support_set = np.empty((self.way, self.shot, self.window_size, self.channels, 1))
-        query_image = np.empty((1, self.window_size, self.channels, 1))
+    def generate_task_keys(self):
+        support_set_keys = []
+        query_keys = []
+        query_gest_indices = []
 
-        task_gestures = random.sample(self.g_domain, self.way)
-        query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
-        shot_list = [self.shot]*self.way
-        shot_list[query_gesture_index] += 1
+        for i in range(self.batch_size):
+            support_set = []
+            task_gestures = random.sample(self.g_domain, self.way)
+            query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
+            shot_list = [self.shot]*self.way
+            shot_list[query_gesture_index] += 1
 
-        support_pairs = [random.sample(self.s_r_pairs, shot_number) for shot_number in shot_list]
-        for i,g in enumerate(task_gestures):
-            sgr_list = [pair + (g,) for pair in support_pairs[i]]
-            key_list.append(self.getKeys(*sgr_list))
+            support_pairs = [random.sample(self.s_r_pairs, shot_number) for shot_number in shot_list]
+            for i,g in enumerate(task_gestures):
+                sgr_list = [pair + (g,) for pair in support_pairs[i]]
+                support_set.append(self.getKeys(*sgr_list))
 
-        query_key = key_list[query_gesture_index].pop()
+            query_key = support_set[query_gesture_index].pop()
 
-        # Nxk support set is made up of N sets of k images from each category
-        # gest_key_list contains all the keys for the i-th category
-        # i.e. if i = 2nd category with gesture number g=5, for k=3 examples per category then gest_key_list would be
-        #  ['s1g5r2', 's3g5r3', 's12g5r4']
-        # Each key corresponds to a Lx15X12x1 segmented array (in segments of 15 samples) where L is the number of segments for each movement (could vary depending o movement length)
-        # For each movement one segment is chosen randomly
-        for i,gest_key_list in enumerate(key_list):
-            shots = [self.get_segment_of_semg(key) for key in gest_key_list]
-            support_set[i] = np.array(shots)
+            support_set_keys.append(support_set)
+            query_keys.append(query_key)
+            query_gest_indices.append(query_gesture_index)
 
+        return support_set_keys, query_keys, query_gest_indices
 
-        query_image = np.expand_dims(self.get_segment_of_semg(query_key),axis=0)
-        label = utils.to_categorical(query_gesture_index, num_classes=self.way)
+    def generate_task_keys_2a(self):
+        support_set_keys = []
+        query_keys = []
+        query_gest_indices = []
 
-        # if self.print_labels and index%self.print_label_freq == 0:
-        #     print(f"index={index}\n\n")
-        #     printKeys(key_list)
+        for i in range(self.batch_size):
+            support_set = []
 
-        return support_set, query_image, label
+            task_gestures = random.sample(self.g_domain, self.way)
+            query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
+            chosen_subject = random.choice(self.s_domain)
+            shot_list = [self.shot] * self.way
+            shot_list[query_gesture_index] += 1
 
-    def generate_task_2a(self, index):
-        key_list = []
-        support_set = np.empty((self.way, self.shot, self.channels, self.window_size, 1))
-        query_image = np.empty((1, self.channels, self.window_size, 1))
+            reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
+            for i,g in enumerate(task_gestures):
+                sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
+                support_set.append(self.getKeys(*sgr_list))
 
-        task_gestures = random.sample(self.g_domain, self.way)
-        query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
-        chosen_subject = random.choice(self.s_domain)
-        shot_list = [self.shot] * self.way
-        shot_list[query_gesture_index] += 1
+            query_key = support_set[query_gesture_index].pop()
 
-        reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
-        for i,g in enumerate(task_gestures):
-            sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
-            key_list.append(self.getKeys(*sgr_list))
-
-        query_key = key_list[query_gesture_index].pop()
-
-        for i, gest_key_list in enumerate(key_list):
-            shots = [self.get_segment_of_semg(key) for key in gest_key_list]
-            support_set[i] = np.array(shots)
-
-        query_image = np.repeat(np.expand_dims(self.get_segment_of_semg(query_key),axis=0),self.way,axis=0)
-        label = utils.to_categorical([query_gesture_index], num_classes=self.way)
-
-        # if self.print_labels and index%self.print_label_freq == 0:
-        #     print(f"index={index}\n\n")
-        #     printKeys(key_list)
+            support_set_keys.append(support_set)
+            query_keys.append(query_key)
+            query_gest_indices.append(query_gesture_index)
 
 
-        return support_set, query_image, label
+        return support_set_keys, query_keys, query_gest_indices
+
+    def get_task_data_based_on_keys(self, support_keys, query_keys, query_gesture_indices):
+        support_set_batch = []
+        query_batch = []
+        labels_batch = []
+
+        # Each list should have length == self.batch_size
+        for i in range(len(support_keys)):
+
+            support_set = np.empty((self.way, self.shot, self.window_size, self.channels, 1))
+            query_image = np.empty((1, self.channels, self.window_size, 1))
+
+            for j, gest_key_list in enumerate(support_keys[i]):
+                shots = [self.get_segment_of_semg(key) for key in gest_key_list]
+                support_set[j] = np.array(shots)
+
+            query_image = np.expand_dims(self.get_segment_of_semg(query_keys[i]), axis=0)
+            label = utils.to_categorical([query_gesture_indices[i]], num_classes=self.way)
+
+            support_set_batch.append(support_set)
+            query_batch.append(query_image)
+            labels_batch.append(label[0])
+
+        return np.array(support_set_batch), np.array(query_batch), np.array(labels_batch)
 
 
+"""
+DESCRIPTION
+    Generates tasks, using only their keys. Stores these tasks in csv format.
+    These data are N lists of k keys(+1 query key) which are reshaped into 1 Nxk+1 long list
+    
+"""
+class TaskGeneratorKeysOnly:
+    def __init__(self, way, shot, ex, batch_size, num_batches):
+        self.way = way
+        self.shot = shot
+        self.experiment = ex
+        self.batch_size = batch_size
+        self.num_batches = num_batches
 
+        if self.experiment == '1':
+            self.s_domain = list(range(1,41))
+            self.g_domain = list(range(1,50))
+            self.r_domain = {'train':[1,3,4,6], 'test':[2,5]}[self.mode]
+            self.task_generator = self.generate_task_keys
+            self.s_r_pairs = self.get_s_r_pairs()
+
+        elif self.experiment in ['2a', '2b']:
+            self.s_domain = {'train': list(range(1,28)), 'val': list(range(28,33)),'test': list(range(33,41))}[self.mode]
+            self.g_domain = list(range(1,50))
+            self.r_domain = list(range(1,7))
+
+            if experiment == '2a':
+                self.task_generator = self.generate_task_keys_2a
+            else:
+                self.task_generator = self.generate_task_keys
+                self.s_r_pairs = self.get_s_r_pairs()
+
+        elif self.experiment == '3':
+            self.s_domain = list(range(1, 41))
+            self.g_domain = {'train': list(range(1,35)), 'val': list(range(35,41)), 'test': list(range(41,50))}[self.mode]
+            self.r_domain = list(range(1, 7))
+            self.task_generator = self.generate_task_keys
+            self.s_r_pairs = self.get_s_r_pairs()
+
+    def generate_task_keys(self):
+        support_set_keys = []
+        query_keys = []
+        query_gest_indices = []
+
+        for i in range(self.batch_size):
+            support_set = []
+            task_gestures = random.sample(self.g_domain, self.way)
+            query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
+            shot_list = [self.shot]*self.way
+            shot_list[query_gesture_index] += 1
+
+            support_pairs = [random.sample(self.s_r_pairs, shot_number) for shot_number in shot_list]
+            for i,g in enumerate(task_gestures):
+                sgr_list = [pair + (g,) for pair in support_pairs[i]]
+                support_set.append(self.getKeys(*sgr_list))
+
+            query_key = support_set[query_gesture_index].pop()
+
+            support_set_keys.append(support_set)
+            query_keys.append(query_key)
+            query_gest_indices.append(query_gesture_index)
+
+        return support_set_keys, query_keys, query_gest_indices
+
+    def generate_task_keys_2a(self):
+        support_set_keys = []
+        query_keys = []
+        query_gest_indices = []
+
+        for i in range(self.batch_size):
+            support_set = []
+
+            task_gestures = random.sample(self.g_domain, self.way)
+            query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
+            chosen_subject = random.choice(self.s_domain)
+            shot_list = [self.shot] * self.way
+            shot_list[query_gesture_index] += 1
+
+            reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
+            for i,g in enumerate(task_gestures):
+                sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
+                support_set.append(self.getKeys(*sgr_list))
+
+            query_key = support_set[query_gesture_index].pop()
+
+            support_set_keys.append(support_set)
+            query_keys.append(query_key)
+            query_gest_indices.append(query_gesture_index)
+
+
+        return support_set_keys, query_keys, query_gest_indices
+
+    def get_s_r_pairs(self) -> list:
+        return [(s,r) for s in self.s_domain for r in self.r_domain]
