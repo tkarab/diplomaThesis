@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from keras import utils
 import tensorflow
@@ -9,6 +11,7 @@ import helper_functions as hlp
 from plot_functions import *
 import preprocessing
 import data_augmentation as aug
+import csv
 
 
 class DataFileInfoProvider:
@@ -239,9 +242,12 @@ DESCRIPTION
     
 """
 class TaskGeneratorKeysOnly:
-    def __init__(self, way, shot, ex, batch_size, num_batches):
+    def __init__(self, way, shot, mode:str, ex, batch_size, num_batches):
+        self.path = f'tasks/DB{2}'
+
         self.way = way
         self.shot = shot
+        self.mode = mode
         self.experiment = ex
         self.batch_size = batch_size
         self.num_batches = num_batches
@@ -258,7 +264,7 @@ class TaskGeneratorKeysOnly:
             self.g_domain = list(range(1,50))
             self.r_domain = list(range(1,7))
 
-            if experiment == '2a':
+            if self.experiment == '2a':
                 self.task_generator = self.generate_task_keys_2a
             else:
                 self.task_generator = self.generate_task_keys
@@ -272,11 +278,9 @@ class TaskGeneratorKeysOnly:
             self.s_r_pairs = self.get_s_r_pairs()
 
     def generate_task_keys(self):
-        support_set_keys = []
-        query_keys = []
-        query_gest_indices = []
+        task_lines = []
 
-        for i in range(self.batch_size):
+        for i in range(self.batch_size*self.num_batches):
             support_set = []
             task_gestures = random.sample(self.g_domain, self.way)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
@@ -286,22 +290,25 @@ class TaskGeneratorKeysOnly:
             support_pairs = [random.sample(self.s_r_pairs, shot_number) for shot_number in shot_list]
             for i,g in enumerate(task_gestures):
                 sgr_list = [pair + (g,) for pair in support_pairs[i]]
-                support_set.append(self.getKeys(*sgr_list))
+                support_set_class = self.getKeys(*sgr_list)
+                if g == chosen_query_gest:
+                    query_key = support_set_class.pop()
+                support_set += support_set_class
 
-            query_key = support_set[query_gesture_index].pop()
+            support_set.append(query_key)
+            support_set.append(query_gesture_index)
 
-            support_set_keys.append(support_set)
-            query_keys.append(query_key)
-            query_gest_indices.append(query_gesture_index)
+            task_lines.append(support_set)
 
-        return support_set_keys, query_keys, query_gest_indices
+            if(i%100 == 0.0):
+                print(f"{i+1}/{self.num_batches*self.batch_size}")
+
+        return task_lines
 
     def generate_task_keys_2a(self):
-        support_set_keys = []
-        query_keys = []
-        query_gest_indices = []
+        task_lines = []
 
-        for i in range(self.batch_size):
+        for i in range(self.batch_size*self.num_batches):
             support_set = []
 
             task_gestures = random.sample(self.g_domain, self.way)
@@ -313,16 +320,46 @@ class TaskGeneratorKeysOnly:
             reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
             for i,g in enumerate(task_gestures):
                 sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
-                support_set.append(self.getKeys(*sgr_list))
+                support_set_class = self.getKeys(*sgr_list)
+                if g == chosen_query_gest:
+                    query_key = support_set_class.pop()
+                support_set += support_set_class
 
-            query_key = support_set[query_gesture_index].pop()
+            support_set.append(query_key)
+            support_set.append(query_gesture_index)
 
-            support_set_keys.append(support_set)
-            query_keys.append(query_key)
-            query_gest_indices.append(query_gesture_index)
+            task_lines.append(support_set)
+
+        return task_lines
+
+    def generate_tasks(self):
+        self.task_lines = self.task_generator()
+
+        return
+
+    def save_tasks(self):
+        with open(os.path.join(self.path,f'ex{self.experiment}{self.way}way{self.shot}shot.csv'),'w', newline='') as file:
+            writer = csv.writer(file)
+            for task in self.task_lines:
+                writer.writerow(task)
 
 
-        return support_set_keys, query_keys, query_gest_indices
+    def getKeys(self,*entries:tuple) -> list:
+        return [hlp.getKey(s,g,r) for s,r,g in entries]
 
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
+
+
+if __name__ == '__main__':
+    way = 5
+    shot = 5
+    ex = '1'
+    num_batches = 10000
+    batch_size = 64
+    gen = TaskGeneratorKeysOnly(way=way,shot=shot, mode='train', ex=ex, num_batches=num_batches, batch_size=batch_size)
+    t1 = time.time()
+    gen.generate_tasks()
+    gen.save_tasks()
+
+    print(f"total time for {num_batches*batch_size} ({way}way-{shot}shot) tasks: {time.time()-t1:.2f}")
