@@ -108,9 +108,9 @@ class TaskGenerator(utils.Sequence):
             self.s_r_pairs = self.get_s_r_pairs()
 
         if self.data_intake == "csv":
-            t1 = time.time()
+            # t1 = time.time()
             self.load_tasks_from_file()
-            print(f"total time for loading tasks : {time.time()-t1:.2f}")
+            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
             self.task_generator = self.get_premade_keys
         else:
             if self.experiment == '2a':
