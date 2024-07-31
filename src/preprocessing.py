@@ -99,53 +99,36 @@ def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
     return x[max(L // 2 - W, 0):min(L // 2 + W, L)]
 
 
-def apply_preprocessing(data_path, config_dict:dict, db:int):
+def apply_preprocessing(data_path, config_dict:dict):
     print("Performing preprocessing...\n")
-
-    if db == 2:
-        gestures = 49
-        reps = 6
-    elif db == 5:
-        gestures = 52
-        reps = 6
-    elif db == 1:
-        gestures = 52
-        reps = 10
-    total_samples_per_gesture = gestures*reps
-    final_sample_subfix = f'g{gestures:02d}r{reps:02d}'
-
-
     data = np.load(data_path)
     data_proc = {key:None for key in data}
     data_seg = {key:None for key in data}
 
     config_operations = config_dict['ops']
     config_params = config_dict['params']
+    op_no_seg = [op for op in preprocess_operations if not op == "SEGMENT"]
 
     if config_operations["LOWPASS"] == True :
         b, a = get_filter_coeffs(**config_params["LOWPASS"])
         config_params["LOWPASS"] = {"b" : b, "a" : a}
 
-    operations_params = [(preprocess_funcs[op], config_params[op]) for op in preprocess_operations if config_operations[op] == True and op != "SEGMENT"]
-
     t1 = time.time()
     for key,emg in data.items():
-        for func,params in operations_params:
-            emg = func(emg,**params)
+        for op in op_no_seg:
+            if config_operations[op] == True:
+                emg = preprocess_funcs[op](emg, **config_params[op])
 
         data_proc[key] = np.expand_dims(emg,-1)
 
-        if key[3:] == final_sample_subfix :
-            print(f"{key[:3]}/{len(data.items())//total_samples_per_gesture} : {time.time()-t1:.2f}s")
+        if config_operations["SEGMENT"] == True:
+            data_seg[key] = get_segmentation_indices(emg,**config_params["SEGMENT"])
+
+        if key[3:] == "g49r06" :
+            print(f"{key[:3]}/{len(data.items())//294} : {time.time()-t1:.2f}s")
             t1 = time.time()
-
-    if config_operations["SEGMENT"] == True:
-        for key,emg in data_proc.items():
-            data_seg[key] = get_segmentation_indices(emg, **config_params["SEGMENT"])
-
     print("\n...preprocessing has finished\n")
     return data_proc, data_seg
-
 
 
 
@@ -164,10 +147,9 @@ preprocess_funcs = {
 
 
 if __name__ == "__main__":
-    db = 2
     config = helper_functions.get_config_from_json_file(mode="preproc", filename='db2_lpf')
     data_dir_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, r'db2_rms_200\db2_rms_200.npz')
-    data_proc, segments = apply_preprocessing(data_dir_path, config, db)
+    data_proc, segments = apply_preprocessing(data_dir_path, config)
 
     aug_config = helper_functions.get_config_from_json_file('aug','db2_awgn')
     aug.apply_augmentation(data_proc, aug_config)
