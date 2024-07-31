@@ -1,4 +1,6 @@
 import os
+import time
+
 import custom_models
 import fsl_functions
 import tensorflow as tf
@@ -74,15 +76,36 @@ db = 2
 rms = 100
 preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf_minmax')
 
-aug_enabled = True
+aug_enabled = False
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
+data_intake = 'csv'
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train',database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=32, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake,database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=32, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
+batches = 10000
+
+t1 = time.time()
+
+for i in range(batches):
+    keys = train_loader.generate_task_keys(i)
+    support_batch, query_batch, labels_batch = train_loader.get_task_data_based_on_keys(*keys)
+
+print(f"using generate: {time.time()-t1:.2f}")
+
+t2 = time.time()
+for i in range(batches):
+    keys = train_loader.get_premade_keys(i)
+    support_batch, query_batch, labels_batch = train_loader.get_task_data_based_on_keys(*keys)
+
+print(f"using premade: {time.time()-t2:.2f}")
+
+
+
+
 print("END")
 callback = IterationLoggingCallback()
-model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
+# model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
 
 
