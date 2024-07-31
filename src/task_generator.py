@@ -1,18 +1,18 @@
 import time
-
 import numpy as np
 from keras import utils
 import tensorflow
 import keras
 import random
 import os
-import preprocessing
 import csv
 import pandas as pd
+
 from constants import *
 from helper_functions import *
 from plot_functions import *
 from data_augmentation import *
+from preprocessing import *
 
 
 class FileInfoProvider:
@@ -130,7 +130,7 @@ class TaskGenerator(utils.Sequence):
         return self.batches_per_epoch
 
     def get__data(self):
-        self.data, self.segments = preprocessing.apply_preprocessing(self.fileInfoProvider.getDataFullPath(), self.preproc_config)
+        self.data, self.segments = apply_preprocessing(self.fileInfoProvider.getDataFullPath(), self.preproc_config, self.db)
 
         if self.aug_enabled:
             self.data_aug = apply_augmentation(self.data, self.aug_config)
