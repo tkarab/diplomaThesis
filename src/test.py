@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import os
 import sys
 import random
@@ -8,20 +9,42 @@ import fsl_functions
 import constants
 import time
 import helper_functions
-import plot_functions
-
-def getKeys(*entries:tuple):
-    return ['s{}g{}r{}'.format(s,g,r) for s,r,g in entries]
-
-DATABASE = 2
+from plot_functions import *
 
 
-support = tf.random.uniform(minval=0, maxval=10, shape = (2,3,5), dtype=tf.int32)
-query = tf.random.uniform(minval=0, maxval=10, shape = (2,1,5), dtype=tf.int32)
-dif = support - query
-dif_sq = tf.square(dif)
-dif_sq_sum = tf.reduce_sum(dif_sq,axis=-1)
-dif_sqrt = tf.sqrt(tf.cast(dif_sq_sum,dtype=tf.float32))
-output = tf.nn.softmax(-dif_sqrt)
+data_path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\db2_processed.npz'
+
+# data = np.load(data_path)
+# total_keys = data.files
+N = 4
+
+# keys = random.sample(total_keys,N)
+
+# print("Keys chosen:",keys)
+# signals = {key :data[key] for key in keys}
+# channels = signals[random.choice(keys)].shape[1]
+# max_length = np.max([signal.shape[0] for signal in signals.values()])
+
+
+channels = 3
+max_length = 10
+columns = [f's{i+1}c{j+1}' for i in range(N) for j in range(channels)]
+df = pd.DataFrame(columns=columns)
+
+for i in range(N):
+    start = 10 + max_length*i
+    a = np.tile(np.arange(start,start+max_length),[channels,1]).T
+    keys = columns[i*channels:(i+1)*channels]
+    df[keys] = a
+
+keys = [list(keyset) for keyset in np.reshape(np.array(columns),[N,channels])]
 print()
+
+
+
+
+
+
+
+
 
