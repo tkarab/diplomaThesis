@@ -8,7 +8,7 @@ PROCESSED_DATA_PATH_DB1 = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωμ�
 PROCESSED_DATA_PATH_DB2 = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2'
 PROCESSED_DATA_PATH_DB5 = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db5'
 
-TASKS_FILES_PATH = r'C:\PycharmProjects\diplomaThesis\src\tasks'
+TASKS_FILES_PATH = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\tasks'
 TASKS_FILE_PATH_DB1 = os.path.join(TASKS_FILES_PATH,'DB1')
 TASKS_FILE_PATH_DB2 = os.path.join(TASKS_FILES_PATH,'DB2')
 TASKS_FILE_PATH_DB5 = os.path.join(TASKS_FILES_PATH,'DB5')

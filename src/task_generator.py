@@ -219,7 +219,9 @@ class TaskGenerator(utils.Sequence):
             support_set = []
             start_indices = []
 
+            # Select N random gestures
             task_gestures = random.sample(self.g_domain, self.way)
+            # Select 1 out of the N to be the query one and keep it index (which of the 5 it is)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
             shot_list = [self.shot]*self.way
             shot_list[query_gesture_index] += 1
@@ -235,20 +237,23 @@ class TaskGenerator(utils.Sequence):
             query_seg_start_index = start_indices[query_gesture_index].pop()
 
             support_set_keys.append(support_set)
-            query_keys.append(query_key)
-            query_gest_indices.append(query_gesture_index)
             support_segments_starting_indices.append(start_indices)
+            query_keys.append(query_key)
             query_segments_starting_indices.append(query_seg_start_index)
+            query_gest_indices.append(query_gesture_index)
 
-        return support_set_keys, query_keys, query_gest_indices, support_segments_starting_indices, query_segments_starting_indices
+        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
     def generate_task_keys_2a(self, index):
         support_set_keys = []
         query_keys = []
         query_gest_indices = []
+        support_segments_starting_indices = []
+        query_segments_starting_indices = []
 
         for i in range(self.batch_size):
             support_set = []
+            start_indices = []
 
             task_gestures = random.sample(self.g_domain, self.way)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
@@ -256,18 +261,25 @@ class TaskGenerator(utils.Sequence):
             shot_list = [self.shot] * self.way
             shot_list[query_gesture_index] += 1
 
+            # Since each of the N gestures is taken from the same subject, the only variant in the (s,g,r)
+            # combination of each key is the 'r'
             reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
             for i,g in enumerate(task_gestures):
                 sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
-                support_set.append(self.getKeys(*sgr_list))
+                category_keys = self.getKeys(*sgr_list)
+                support_set.append(category_keys)
+                start_indices.append([random.choice(self.segments[key]) for key in category_keys])
 
             query_key = support_set[query_gesture_index].pop()
+            query_seg_start_index = start_indices[query_gesture_index].pop()
 
             support_set_keys.append(support_set)
+            support_segments_starting_indices.append(start_indices)
             query_keys.append(query_key)
+            query_segments_starting_indices.append(query_seg_start_index)
             query_gest_indices.append(query_gesture_index)
 
-        return support_set_keys, query_keys, query_gest_indices
+        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
     def get_premade_keys(self,index):
         ind = np.arange(index*self.batch_size, (index+1)*self.batch_size)
@@ -277,9 +289,9 @@ class TaskGenerator(utils.Sequence):
         query_seg = self.query_seg_start[ind]
         gest_ind = self.query_gest_indices[ind]
 
-        return support_keys, query_keys, gest_ind, support_seg, query_seg
+        return support_keys, support_seg, query_keys, query_seg, gest_ind
 
-    def get_task_data_based_on_keys(self, support_keys, query_keys, query_gesture_indices, support_seg_starting_indices, query_seg_starting_indices):
+    def get_task_data_based_on_keys(self, support_keys, support_seg_starting_indices, query_keys, query_seg_starting_indices, query_gesture_indices):
         support_set_batch = []
         query_batch = []
         labels_batch = []
@@ -305,7 +317,7 @@ class TaskGenerator(utils.Sequence):
 
 
 
-def create_csv_lines(support_keys,query_keys,query_gest_ind,support_seg_start,query_seg_start):
+def create_csv_lines(support_keys,support_seg_start,query_keys,query_seg_start,query_gest_ind):
     batch_size,way,shot = np.array(support_keys).shape
     task_lines = np.empty([batch_size,2*(way*shot+1)+1],dtype='U9')
     s_keys_np = np.reshape(np.array(support_keys),[batch_size,way*shot])
@@ -326,30 +338,43 @@ PARAMETERS
     - mode : 'train', 'test' or 'val'
 """
 def save_tasks(task_lines,db,experiment,way,shot,mode):
-    with open(os.path.join(f'tasks/DB{db}',get_tasks_filename(ex=experiment,N=way,k=shot,mode=mode)),'w', newline='') as file:
+    if db == 2:
+        dirpath = TASKS_FILE_PATH_DB2
+    elif db == 1:
+        dirpath = TASKS_FILE_PATH_DB1
+    elif db == 5:
+        dirpath = TASKS_FILE_PATH_DB5
+
+    full_path = os.path.join(dirpath, get_tasks_filename(ex=experiment, N=way, k=shot, mode=mode))
+    # full_path = os.path.join(dirpath, 'ex1_test.csv')
+
+    with open(full_path, 'w', newline='') as file:
         writer = csv.writer(file)
         for task in task_lines:
             writer.writerow(task)
+
+    print(f"Saved at: '{full_path}'")
 
 if __name__ == '__main__':
     way = 5
     shot = 5
     ex = '1'
     db = 2
-    num_batches = 10000
+    num_batches = 1
     batch_size = 64
     mode = 'train'
     preproc_config = get_config_from_json_file('preproc', 'db2_no_lpf')
     Gen = TaskGenerator(experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
 
     t1 = time.time()
-    task_lines = np.empty([1 + num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
-    task_lines[0] = [el for i in range(way) for j in range(shot) for el in (f"class{i+1}_ex{j+1}_key", f"class{i+1}_ex{j+1}_seg")] + ['query_key','query_seg','label']
+    task_lines = np.empty([1+num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
+    headers = [el for i in range(way) for j in range(shot) for el in (f"c{i+1}_e{j+1}_key", f"c{i+1}_e{j+1}_seg")] + ['query_key','query_seg','label']
+    task_lines[0] = headers
 
     print("Preparing tasks...")
     for i in range(num_batches):
-        keys = Gen.generate_task_keys(i)
-        task_lines[1 + i*batch_size : 1 + (i+1)*batch_size] = create_csv_lines(*keys)
+        keys = Gen.task_generator(i)
+        task_lines[1+i*batch_size :1+(i+1)*batch_size] = create_csv_lines(*keys)
         if i%100 == 0:
             print(f"Batch {i}/{num_batches} : {time.time()-t1:.2f}")
 
