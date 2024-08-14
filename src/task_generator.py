@@ -6,20 +6,20 @@ import tensorflow
 import keras
 import random
 import os
-import preprocessing
 import csv
 import pandas as pd
 from constants import *
 from helper_functions import *
 from plot_functions import *
 from data_augmentation import *
+from preprocessing import *
 
 
 class FileInfoProvider:
     def __init__(self, db, rms, N, k, ex, mode):
         if db == 2:
-            self.data_directory = os.path.join(PROCESSED_DATA_PATH_DB2, get_rmsRect_dirname(db, rms))
-            self.data_filepath = os.path.join(self.data_directory, get_rmsRect_dirname(db, rms)+'.npz')
+            self.data_directory = RMS_DATA_PATH_DB2
+            self.data_filepath = os.path.join(self.data_directory, get_rms_rect_filename(db, rms))
         elif db == 1:
             self.data_directory = PROCESSED_DATA_PATH_DB1
             self.data_filepath = os.path.join(self.data_directory,'db1_raw.npz')
@@ -130,7 +130,7 @@ class TaskGenerator(utils.Sequence):
         return self.batches_per_epoch
 
     def get__data(self):
-        self.data, self.segments = preprocessing.apply_preprocessing(self.fileInfoProvider.getDataFullPath(), self.preproc_config)
+        self.data, self.segments = apply_preprocessing(self.fileInfoProvider.getDataFullPath(), self.preproc_config, self.db)
 
         if self.aug_enabled:
             self.data_aug = apply_augmentation(self.data, self.aug_config)
@@ -168,7 +168,7 @@ class TaskGenerator(utils.Sequence):
             if self.aug_enabled:
                 keyAppDict[key] = [0,0]
             else:
-                keyAppDict[key] = 0
+                keyAppDict[key] = [0]
         return keyAppDict
 
 
@@ -200,7 +200,7 @@ class TaskGenerator(utils.Sequence):
         indices = np.arange(segment_start, segment_start+self.window_size)
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
-            self.keyAppDict[key] += 1
+            self.keyAppDict[key][0] += 1
         else:
             ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
             x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
@@ -364,6 +364,7 @@ if __name__ == '__main__':
     batch_size = 64
     mode = 'train'
     preproc_config = get_config_from_json_file('preproc', 'db2_no_lpf')
+    aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
     Gen = TaskGenerator(experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
 
     t1 = time.time()
@@ -384,3 +385,14 @@ if __name__ == '__main__':
     print(f"total time for {num_batches*batch_size} ({way}way-{shot}shot) tasks: {time.time()-t1:.2f}")
     save_tasks(task_lines,db=db, experiment=ex, way=way, shot=shot, mode=mode)
     print()
+
+    # test_loader = TaskGenerator(experiment=ex, way=5, shot=5, mode='test', data_intake='generate', database=db,
+    #               preprocessing_config=preproc_config, aug_enabled=False, aug_config=aug_config, rms_win_size=150,
+    #               batch_size=batch_size, batches=10, print_labels=False, print_labels_frequency=5)
+    #
+    # for i in range(10):
+    #     [x,y],label = test_loader[i]
+    #
+    # test_loader.plotKeyAppHist()
+
+
