@@ -2,7 +2,7 @@ import os.path
 import re
 import numpy as np
 import json
-import constants
+from constants import *
 
 """
 DESCRIPTION
@@ -70,8 +70,8 @@ DESCRIPTION
     rms rectified (created offline) with a certain window size (in ms) 
     i.e. 'db2_rms_100'
 """
-def get_rmsRect_dirname(db, win_size_ms):
-    return f"db{db}_rms_{win_size_ms}"
+def get_rms_rect_filename(db, win_size_ms):
+    return f"db{db}_rms_{win_size_ms}.npz"
 
 
 """
@@ -98,9 +98,9 @@ PARAMETERS
 def get_config_from_json_file(mode, filename):
     full_filename = get_config_full_filename(mode, filename)
     if mode == "preproc":
-        dir_path = constants.DATA_CONFIG_PATH_PREPROC
+        dir_path = DATA_CONFIG_PATH_PREPROC
     elif mode == "aug" :
-        dir_path = constants.DATA_CONFIG_PATH_AUG
+        dir_path = DATA_CONFIG_PATH_AUG
     elif mode == "train" :
         return None
     else:
