@@ -23,17 +23,21 @@ sgr_domains = {
             "r_domain" : {'train' : [1,3,4,6], 'test' : [2,5]}
         },
         "ex2" : {
-            "s_domain" : {},
-            "g_domain" : {},
-            "r_domain" : {}
+            "s_domain" : {'train' : list(range(1,28)), 'val' : list(range(28,33)),'test' : list(range(33,41))},
+            "g_domain" : {'train' : list(range(1,50)), 'val' : list(range(1,50)), 'test' : list(range(1,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
         },
         "ex3" : {
-
+            "s_domain" : {'train' : list(range(1,41)), 'val' : list(range(1,41)), 'test' : list(range(1,41))},
+            "g_domain" : {'train' : list(range(1,35)), 'val' : list(range(35,41)),'test' : list(range(41,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
         }
     },
+
     "db5" : {
 
     },
+    
     "db1" : {
 
     }
