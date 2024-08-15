@@ -63,6 +63,7 @@ class FileInfoProvider:
     def setMode(self,mode):
         self.mode = mode
         return
+
     def getDataDirectoryPath(self):
         return self.data_directory
 
@@ -122,8 +123,12 @@ class TaskGenerator(utils.Sequence):
         self.s_domain = []
         self.g_domain = []
         self.r_domain = []
-        self.get_sgr_domains()
         self.s_r_pairs = []
+
+        self.get_sgr_domains()
+
+
+        self.set_data_intake_type(data_intake)
 
         return
 
@@ -158,6 +163,7 @@ class TaskGenerator(utils.Sequence):
 
         self.query_keys = q_keys.to_numpy()
         self.query_seg_start = q_seg.to_numpy()
+
         self.query_gest_indices = q_label.to_numpy()
 
         print("\n...tasks have been loaded.")
@@ -205,9 +211,10 @@ class TaskGenerator(utils.Sequence):
     """
     def get_sgr_domains(self):
         exp_key = f'ex{self.experiment[0]}'
-        self.s_domain = sgr_domains[exp_key][self.mode]
-        self.g_domain = sgr_domains[exp_key][self.mode]
-        self.r_domain = sgr_domains[exp_key][self.mode]
+        db_key = f'db{self.db}'
+        self.s_domain = sgr_domains[db_key][exp_key]["s_domain"][self.mode]
+        self.g_domain = sgr_domains[db_key][exp_key]["g_domain"][self.mode]
+        self.r_domain = sgr_domains[db_key][exp_key]["r_domain"][self.mode]
         self.set_s_r_pairs()
 
         return
@@ -258,11 +265,17 @@ class TaskGenerator(utils.Sequence):
 
     def setMode(self,mode):
         if self.mode == mode:
-            return 
+            return
         self.mode = mode
         self.fileInfoProvider.setMode(self.mode)
         # self.s_r_pairs gets taken care of by self.get_sgr_domains
         self.get_sgr_domains()
+
+        # In case tasks are premade and loaded from a csv file, they need to be reloaded since each csv file
+        # depends on the mode and thus a different file contains the tak keys for that different mode
+        if self.data_intake == "csv":
+            # t1 = time.time()
+            self.load_tasks_from_file()
 
         return
 

@@ -87,14 +87,22 @@ train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_in
 
 [x,y], label = train_loader[0]
 
+train_loader.set_data_intake_type('generate')
+
+[x,y], label = train_loader[1]
+
+train_loader.setMode('test')
+
+[x,y], label = train_loader[2]
+
 
 
 t1 = time.time()
 
 print("END")
 callback = IterationLoggingCallback()
-model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
-train_loader.set_batch_size(32)
-model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
+# model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
+# train_loader.set_batch_size(32)
+# model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
 
 
