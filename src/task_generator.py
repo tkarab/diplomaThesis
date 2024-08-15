@@ -263,6 +263,8 @@ class TaskGenerator(utils.Sequence):
 
         return
 
+    def getMode(self):
+        return self.mode
     def setMode(self,mode):
         if self.mode == mode:
             return
@@ -278,6 +280,13 @@ class TaskGenerator(utils.Sequence):
             self.load_tasks_from_file()
 
         return
+
+    def set_iterations_per_epoch(self,iterations):
+        self.batches_per_epoch = iterations
+        return
+
+    def set_aug_enabled(self,aug_enabled):
+        self.aug_enabled = aug_enabled
 
 
     def generate_task_keys(self, index):

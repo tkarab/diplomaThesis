@@ -47,9 +47,35 @@ class IterationLoggingCallback(keras.callbacks.Callback):
         super().on_epoch_end(epoch, logs)
         # print('win_size: ', win_size)
 
-iterations_per_epoch = 100
+class ModeSwitchingCallback(keras.callbacks.Callback):
+    def __init__(self, taskGenerator:TaskGenerator, val_frequency:int = 1):
+        super(ModeSwitchingCallback, self).__init__()
+        self.taskGenerator = taskGenerator
+        self.val_frequency = val_frequency
+
+    def on_epoch_begin(self, epoch, logs=None):
+        # Set the mode of the sequence object at the beginning of each epoch
+        if self.taskGenerator.getMode() == 'test':
+            self.taskGenerator.setMode('train')
+            self.taskGenerator.set_batch_size(batch_size)
+            self.taskGenerator.batches_per_epoch = training_steps
+
+            return
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1) % (self.val_frequency) == 0.0 :
+            if self.taskGenerator.getMode() == 'train':
+                self.taskGenerator.setMode('test')
+                self.taskGenerator.set_batch_size(1)
+                # self.taskGenerator.batches_per_epoch = 20
+                model2.evaluate(self.taskGenerator,steps=validation_steps)
+
+        return
+
+validation_steps = 1000
+training_steps = 1000
 batch_size = 64
-epochs = 1
+epochs = 11
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
@@ -79,30 +105,34 @@ preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf_
 
 aug_enabled = False
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
-data_intake = 'csv'
+data_intake = 'generate'
 
 
 
-train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake,database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=iterations_per_epoch, print_labels=True, print_labels_frequency=5)
+train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps, print_labels=True, print_labels_frequency=5)
 
 [x,y], label = train_loader[0]
 
-train_loader.set_data_intake_type('generate')
-
-[x,y], label = train_loader[1]
-
-train_loader.setMode('test')
-
-[x,y], label = train_loader[2]
-
-
-
-t1 = time.time()
-
-print("END")
-callback = IterationLoggingCallback()
+iterationLoggingCallback = IterationLoggingCallback()
+modeChangingCallback = ModeSwitchingCallback(taskGenerator=train_loader, val_frequency=1)
 # model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
 # train_loader.set_batch_size(32)
-# model2.fit(train_loader, epochs=epochs,   shuffle=False, callbacks=[callback])
+for i in range(epochs):
+    print(f"\nEpoch {i+1:2d}/{epochs}")
+    model2.fit(train_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
+
+    train_loader.setMode('test')
+    train_loader.set_iterations_per_epoch(validation_steps)
+    train_loader.set_batch_size(1)
+    train_loader.set_aug_enabled(False)
+    model2.evaluate(train_loader)
+
+    train_loader.setMode('train')
+    train_loader.set_iterations_per_epoch(training_steps)
+    train_loader.set_batch_size(batch_size)
+    train_loader.set_aug_enabled(aug_enabled)
+
+
+print("END")
 
 
