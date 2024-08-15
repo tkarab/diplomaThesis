@@ -15,6 +15,30 @@ from data_augmentation import *
 from preprocessing import *
 
 
+sgr_domains = {
+    "db2" : {
+        "ex1" : {
+            "s_domain" : {'train' : list(range(1,41)), 'test' : list(range(1,41))},
+            "g_domain" : {'train' : list(range(1,50)), 'test' : list(range(1,50))},
+            "r_domain" : {'train' : [1,3,4,6], 'test' : [2,5]}
+        },
+        "ex2" : {
+            "s_domain" : {},
+            "g_domain" : {},
+            "r_domain" : {}
+        },
+        "ex3" : {
+
+        }
+    },
+    "db5" : {
+
+    },
+    "db1" : {
+
+    }
+}
+
 class FileInfoProvider:
     def __init__(self, db, rms, N, k, ex, mode):
         if db == 2:
@@ -57,7 +81,8 @@ class TaskGenerator(utils.Sequence):
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.data_intake = data_intake
+        self.data_intake = '' #= data_intake
+        self.task_generator = None
 
         self.db = database
 
@@ -107,16 +132,6 @@ class TaskGenerator(utils.Sequence):
             self.r_domain = list(range(1, 7))
             self.s_r_pairs = self.get_s_r_pairs()
 
-        if self.data_intake == "csv":
-            # t1 = time.time()
-            self.load_tasks_from_file()
-            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
-            self.task_generator = self.get_premade_keys
-        else:
-            if self.experiment == '2a':
-                self.task_generator = self.generate_task_keys_2a
-            elif self.experiment in ['1','2b','3']:
-                self.task_generator = self.generate_task_keys
 
         return
 
@@ -202,11 +217,39 @@ class TaskGenerator(utils.Sequence):
             x = np.take(self.data[key],indices,axis=0)
             self.keyAppDict[key][0] += 1
         else:
+            #TODO - Might be more depending on the number of unique augmentation techniques used
             ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
             x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
             self.keyAppDict[key][ind] += 1
 
         return x
+
+    def set_batch_size(self, batch_size:int):
+        self.batch_size = batch_size
+        return
+
+    """
+        PARAMETERS
+        data
+    """
+    def set_data_intake_type(self,data_intake):
+        if self.data_intake == data_intake or data_intake not in ['csv','generate']:
+            return
+        self.data_intake = data_intake
+
+        if self.data_intake == "csv":
+            # t1 = time.time()
+            self.load_tasks_from_file()
+            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
+            self.task_generator = self.get_premade_keys
+        elif self.data_intake == "generate":
+            if self.experiment == '2a':
+                self.task_generator = self.generate_task_keys_2a
+            elif self.experiment in ['1','2b','3']:
+                self.task_generator = self.generate_task_keys
+
+        return
+
 
     def generate_task_keys(self, index):
         support_set_keys = []
