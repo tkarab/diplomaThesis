@@ -60,6 +60,9 @@ class FileInfoProvider:
         self.ex = ex
         self.mode = mode
 
+    def setMode(self,mode):
+        self.mode = mode
+        return
     def getDataDirectoryPath(self):
         return self.data_directory
 
@@ -85,7 +88,7 @@ class TaskGenerator(utils.Sequence):
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.data_intake = '' #= data_intake
+        self.data_intake = ''
         self.task_generator = None
 
         self.db = database
@@ -115,14 +118,12 @@ class TaskGenerator(utils.Sequence):
         self.batches_per_epoch = batches
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
+
         self.s_domain = []
         self.g_domain = []
         self.r_domain = []
         self.get_sgr_domains()
         self.s_r_pairs = []
-
-        if not self.experiment == '2a':
-            self.s_r_pairs = self.get_s_r_pairs()
 
         return
 
@@ -194,8 +195,8 @@ class TaskGenerator(utils.Sequence):
     def getKeys_in_order(self,*entries:tuple) -> list:
         return [getKey(s,g,r) for s,g,r in entries]
 
-    def get_s_r_pairs(self) -> list:
-        return [(s,r) for s in self.s_domain for r in self.r_domain]
+    def set_s_r_pairs(self) -> list:
+        self.s_r_pairs = [(s,r) for s in self.s_domain for r in self.r_domain]
 
     """
     DESCRIPTION
@@ -207,6 +208,7 @@ class TaskGenerator(utils.Sequence):
         self.s_domain = sgr_domains[exp_key][self.mode]
         self.g_domain = sgr_domains[exp_key][self.mode]
         self.r_domain = sgr_domains[exp_key][self.mode]
+        self.set_s_r_pairs()
 
         return
 
@@ -251,6 +253,16 @@ class TaskGenerator(utils.Sequence):
                 self.task_generator = self.generate_task_keys_2a
             elif self.experiment in ['1','2b','3']:
                 self.task_generator = self.generate_task_keys
+
+        return
+
+    def setMode(self,mode):
+        if self.mode == mode:
+            return 
+        self.mode = mode
+        self.fileInfoProvider.setMode(self.mode)
+        # self.s_r_pairs gets taken care of by self.get_sgr_domains
+        self.get_sgr_domains()
 
         return
 
