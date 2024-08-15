@@ -37,7 +37,7 @@ sgr_domains = {
     "db5" : {
 
     },
-    
+
     "db1" : {
 
     }
@@ -115,27 +115,14 @@ class TaskGenerator(utils.Sequence):
         self.batches_per_epoch = batches
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
+        self.s_domain = []
+        self.g_domain = []
+        self.r_domain = []
+        self.get_sgr_domains()
+        self.s_r_pairs = []
 
-        if self.experiment == '1':
-            self.s_domain = list(range(1,41))
-            self.g_domain = list(range(1,50))
-            self.r_domain = {'train':[1,3,4,6], 'test':[2,5]}[self.mode]
+        if not self.experiment == '2a':
             self.s_r_pairs = self.get_s_r_pairs()
-
-        elif self.experiment in ['2a', '2b']:
-            self.s_domain = {'train': list(range(1,28)), 'val': list(range(28,33)),'test': list(range(33,41))}[self.mode]
-            self.g_domain = list(range(1,50))
-            self.r_domain = list(range(1,7))
-
-            if experiment == '2b':
-                self.s_r_pairs = self.get_s_r_pairs()
-
-        elif self.experiment == '3':
-            self.s_domain = list(range(1, 41))
-            self.g_domain = {'train': list(range(1,35)), 'val': list(range(35,41)), 'test': list(range(41,50))}[self.mode]
-            self.r_domain = list(range(1, 7))
-            self.s_r_pairs = self.get_s_r_pairs()
-
 
         return
 
@@ -209,6 +196,19 @@ class TaskGenerator(utils.Sequence):
 
     def get_s_r_pairs(self) -> list:
         return [(s,r) for s in self.s_domain for r in self.r_domain]
+
+    """
+    DESCRIPTION
+        Depending on the experiment and the database used there are different values for the s,g,r fields
+        These are all taken from the dictionary containing the configurations 
+    """
+    def get_sgr_domains(self):
+        exp_key = f'ex{self.experiment[0]}'
+        self.s_domain = sgr_domains[exp_key][self.mode]
+        self.g_domain = sgr_domains[exp_key][self.mode]
+        self.r_domain = sgr_domains[exp_key][self.mode]
+
+        return
 
     def plotKeyAppHist(self):
         plotDictBar(self.keyAppDict)
