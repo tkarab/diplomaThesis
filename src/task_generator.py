@@ -251,9 +251,7 @@ class TaskGenerator(utils.Sequence):
         self.data_intake = data_intake
 
         if self.data_intake == "csv":
-            # t1 = time.time()
             self.load_tasks_from_file()
-            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
             self.task_generator = self.get_premade_keys
         elif self.data_intake == "generate":
             if self.experiment == '2a':

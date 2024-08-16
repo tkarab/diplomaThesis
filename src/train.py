@@ -68,13 +68,13 @@ class ModeSwitchingCallback(keras.callbacks.Callback):
                 self.taskGenerator.setMode('test')
                 self.taskGenerator.set_batch_size(1)
                 # self.taskGenerator.batches_per_epoch = 20
-                model2.evaluate(self.taskGenerator,steps=validation_steps)
+                model.evaluate(self.taskGenerator, steps=validation_steps)
 
         return
 
 validation_steps = 1000
 training_steps = 1000
-batch_size = 64
+batch_size = 32
 epochs = 11
 win_size = 15
 channels = 12
@@ -90,23 +90,17 @@ ex = '1'
 N = 5
 k = 5
 
-#model
-# model = keras.Model(inputs=[support_set_inp_shape_layer,query_set_inp_shape_layer], outputs=query_prediction_layer)
-model = model_assembly.assemble_protonet_timeDist(cnn_backbone, inp_shape)
-model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])#, run_eagerly=True)
-
-model2 = model_assembly.assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-model2.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
+model = model_assembly.assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
+model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0.001), metrics=['categorical_accuracy'])
 
 
 db = 2
 rms = 100
 preproc_config = helper_functions.get_config_from_json_file('preproc', 'db2_lpf_minmax')
 
-aug_enabled = False
+aug_enabled = True
 aug_config = helper_functions.get_config_from_json_file('aug', 'db2_awgn_snr25')
-data_intake = 'generate'
-
+data_intake = 'csv'
 
 
 train_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps, print_labels=True, print_labels_frequency=5)
@@ -119,13 +113,13 @@ modeChangingCallback = ModeSwitchingCallback(taskGenerator=train_loader, val_fre
 # train_loader.set_batch_size(32)
 for i in range(epochs):
     print(f"\nEpoch {i+1:2d}/{epochs}")
-    model2.fit(train_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
+    model.fit(train_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
 
-    train_loader.setMode('test')
-    train_loader.set_iterations_per_epoch(validation_steps)
-    train_loader.set_batch_size(1)
-    train_loader.set_aug_enabled(False)
-    model2.evaluate(train_loader)
+    # train_loader.setMode('test')
+    # train_loader.set_iterations_per_epoch(validation_steps)
+    # train_loader.set_batch_size(1)
+    # train_loader.set_aug_enabled(False)
+    # model2.evaluate(train_loader)
 
     train_loader.setMode('train')
     train_loader.set_iterations_per_epoch(training_steps)

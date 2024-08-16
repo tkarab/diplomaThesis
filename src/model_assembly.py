@@ -101,6 +101,6 @@ def assemble_protonet_reshape_with_batch(nn_backbone, input_shape:tuple, way:int
     layer_prediction = layers.Lambda(softmax_classification)([layer_prototypes, layer_query_set_embedding])
 
     # Assemble the final Model
-    model = keras.Model(inputs = [layer_support_set_input, layer_query_set_input], outputs=layer_prediction)
+    model = keras.Model(inputs = [layer_support_set_input, layer_query_set_input], outputs=layer_prediction, name="ProtoNet")
 
     return model
