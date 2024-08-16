@@ -12,6 +12,11 @@ RMS_DATA_PATH_DB1 = os.path.join(PROCESSED_DATA_PATH_DB1,'rms')
 RMS_DATA_PATH_DB2 = os.path.join(PROCESSED_DATA_PATH_DB2,'rms')
 RMS_DATA_PATH_DB5 = os.path.join(PROCESSED_DATA_PATH_DB5,'rms')
 
+RESULTS_PATH_EX1  = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 1'
+RESULTS_PATH_EX2A = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 2a'
+RESULTS_PATH_EX2B = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 2b'
+RESULTS_PATH_EX3  = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 3'
+
 TASKS_FILES_PATH = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\tasks'
 TASKS_FILE_PATH_DB1 = os.path.join(TASKS_FILES_PATH,'DB1')
 TASKS_FILE_PATH_DB2 = os.path.join(TASKS_FILES_PATH,'DB2')

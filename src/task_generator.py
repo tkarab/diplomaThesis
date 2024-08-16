@@ -23,17 +23,21 @@ sgr_domains = {
             "r_domain" : {'train' : [1,3,4,6], 'test' : [2,5]}
         },
         "ex2" : {
-            "s_domain" : {},
-            "g_domain" : {},
-            "r_domain" : {}
+            "s_domain" : {'train' : list(range(1,28)), 'val' : list(range(28,33)),'test' : list(range(33,41))},
+            "g_domain" : {'train' : list(range(1,50)), 'val' : list(range(1,50)), 'test' : list(range(1,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
         },
         "ex3" : {
-
+            "s_domain" : {'train' : list(range(1,41)), 'val' : list(range(1,41)), 'test' : list(range(1,41))},
+            "g_domain" : {'train' : list(range(1,35)), 'val' : list(range(35,41)),'test' : list(range(41,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
         }
     },
+
     "db5" : {
 
     },
+
     "db1" : {
 
     }
@@ -55,6 +59,10 @@ class FileInfoProvider:
         self.k = k
         self.ex = ex
         self.mode = mode
+
+    def setMode(self,mode):
+        self.mode = mode
+        return
 
     def getDataDirectoryPath(self):
         return self.data_directory
@@ -81,7 +89,7 @@ class TaskGenerator(utils.Sequence):
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.data_intake = '' #= data_intake
+        self.data_intake = ''
         self.task_generator = None
 
         self.db = database
@@ -112,26 +120,15 @@ class TaskGenerator(utils.Sequence):
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
 
-        if self.experiment == '1':
-            self.s_domain = list(range(1,41))
-            self.g_domain = list(range(1,50))
-            self.r_domain = {'train':[1,3,4,6], 'test':[2,5]}[self.mode]
-            self.s_r_pairs = self.get_s_r_pairs()
+        self.s_domain = []
+        self.g_domain = []
+        self.r_domain = []
+        self.s_r_pairs = []
 
-        elif self.experiment in ['2a', '2b']:
-            self.s_domain = {'train': list(range(1,28)), 'val': list(range(28,33)),'test': list(range(33,41))}[self.mode]
-            self.g_domain = list(range(1,50))
-            self.r_domain = list(range(1,7))
+        self.get_sgr_domains()
 
-            if experiment == '2b':
-                self.s_r_pairs = self.get_s_r_pairs()
 
-        elif self.experiment == '3':
-            self.s_domain = list(range(1, 41))
-            self.g_domain = {'train': list(range(1,35)), 'val': list(range(35,41)), 'test': list(range(41,50))}[self.mode]
-            self.r_domain = list(range(1, 7))
-            self.s_r_pairs = self.get_s_r_pairs()
-
+        self.set_data_intake_type(data_intake)
 
         return
 
@@ -166,6 +163,7 @@ class TaskGenerator(utils.Sequence):
 
         self.query_keys = q_keys.to_numpy()
         self.query_seg_start = q_seg.to_numpy()
+
         self.query_gest_indices = q_label.to_numpy()
 
         print("\n...tasks have been loaded.")
@@ -203,8 +201,23 @@ class TaskGenerator(utils.Sequence):
     def getKeys_in_order(self,*entries:tuple) -> list:
         return [getKey(s,g,r) for s,g,r in entries]
 
-    def get_s_r_pairs(self) -> list:
-        return [(s,r) for s in self.s_domain for r in self.r_domain]
+    def set_s_r_pairs(self) -> list:
+        self.s_r_pairs = [(s,r) for s in self.s_domain for r in self.r_domain]
+
+    """
+    DESCRIPTION
+        Depending on the experiment and the database used there are different values for the s,g,r fields
+        These are all taken from the dictionary containing the configurations 
+    """
+    def get_sgr_domains(self):
+        exp_key = f'ex{self.experiment[0]}'
+        db_key = f'db{self.db}'
+        self.s_domain = sgr_domains[db_key][exp_key]["s_domain"][self.mode]
+        self.g_domain = sgr_domains[db_key][exp_key]["g_domain"][self.mode]
+        self.r_domain = sgr_domains[db_key][exp_key]["r_domain"][self.mode]
+        self.set_s_r_pairs()
+
+        return
 
     def plotKeyAppHist(self):
         plotDictBar(self.keyAppDict)
@@ -238,9 +251,7 @@ class TaskGenerator(utils.Sequence):
         self.data_intake = data_intake
 
         if self.data_intake == "csv":
-            # t1 = time.time()
             self.load_tasks_from_file()
-            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
             self.task_generator = self.get_premade_keys
         elif self.data_intake == "generate":
             if self.experiment == '2a':
@@ -249,6 +260,31 @@ class TaskGenerator(utils.Sequence):
                 self.task_generator = self.generate_task_keys
 
         return
+
+    def getMode(self):
+        return self.mode
+    def setMode(self,mode):
+        if self.mode == mode:
+            return
+        self.mode = mode
+        self.fileInfoProvider.setMode(self.mode)
+        # self.s_r_pairs gets taken care of by self.get_sgr_domains
+        self.get_sgr_domains()
+
+        # In case tasks are premade and loaded from a csv file, they need to be reloaded since each csv file
+        # depends on the mode and thus a different file contains the tak keys for that different mode
+        if self.data_intake == "csv":
+            # t1 = time.time()
+            self.load_tasks_from_file()
+
+        return
+
+    def set_iterations_per_epoch(self,iterations):
+        self.batches_per_epoch = iterations
+        return
+
+    def set_aug_enabled(self,aug_enabled):
+        self.aug_enabled = aug_enabled
 
 
     def generate_task_keys(self, index):
