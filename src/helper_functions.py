@@ -122,3 +122,6 @@ PARAMETERS
 """
 def get_tasks_filename(ex,N,k, mode):
     return f'ex{ex}_{N}way_{k}shot_{mode}.csv'
+
+def get_results_dir_fullpath(ex : str, N:int, k:int):
+    return os.path.join(RESULTS_DIRECTORIES_DICT[ex],f'{N}_way_{k}_shot')

@@ -16,6 +16,12 @@ RESULTS_PATH_EX1  = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματι�
 RESULTS_PATH_EX2A = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 2a'
 RESULTS_PATH_EX2B = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 2b'
 RESULTS_PATH_EX3  = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 3'
+RESULTS_DIRECTORIES_DICT = {
+    '1' : RESULTS_PATH_EX1,
+    '2a': RESULTS_PATH_EX2A,
+    '2b': RESULTS_PATH_EX2B,
+    '3' : RESULTS_PATH_EX3
+}
 
 TASKS_FILES_PATH = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\tasks'
 TASKS_FILE_PATH_DB1 = os.path.join(TASKS_FILES_PATH,'DB1')
