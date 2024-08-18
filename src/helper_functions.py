@@ -125,3 +125,21 @@ def get_tasks_filename(ex,N,k, mode):
 
 def get_results_dir_fullpath(ex : str, N:int, k:int):
     return os.path.join(RESULTS_DIRECTORIES_DICT[ex],f'{N}_way_{k}_shot')
+
+"""
+    DESCRIPTION
+    Determines the name of the model based on the number of existing models of the same type.
+    i.e. it could be a protoNet with different backbone each time. It creates a file with the correct enumeration
+    based on the number of existing models of that type.
+
+    For example if there are already models 'model_protoNet_1.h5' and 'model_protoNet_2.h5' the file will be named
+    'model_protoNet_3.h5' etc. If there are none the number will be set to '1'
+
+    To provide mode info for the model and the training process in general a .txt file wll be provided
+"""
+def get_checkpoint_filename(dir_path, model_name):
+    name = f"model_{model_name}_1.h5"
+    if name in os.listdir(dir_path):
+        num = int((name.split('.')[0]).split('_')[-1])
+        name = f"model_{model_name}_{num + 1}.h5"
+    return name

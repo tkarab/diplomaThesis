@@ -43,26 +43,6 @@ def print_array(array, name:str):
     return
 
 
-"""
-    DESCRIPTION
-    Determines the name of the model based on the number of existing models of the same type.
-    i.e. it could be a protoNet with different backbone each time. It creates a file with the correct enumeration
-    based on the number of existing models of that type.
-
-    For example if there are already models 'model_protoNet_1.h5' and 'model_protoNet_2.h5' the file will be named
-    'model_protoNet_3.h5' etc. If there are none the number will be set to '1'
-
-    To provide mode info for the model and the training process in general a .txt file wll be provided
-"""
-
-
-def get_checkpoint_filename(dir_path, model_name):
-    name = f"model_{model_name}_1.h5"
-    if name in os.listdir(dir_path):
-        num = int((name.split('.')[0]).split('_')[-1])
-        name = f"model_{model_name}_{num + 1}.h5"
-    return name
-
 
 class IterationLoggingCallback(keras.callbacks.Callback):
     # def on_batch_end(self, batch, logs=None):
@@ -74,7 +54,7 @@ class IterationLoggingCallback(keras.callbacks.Callback):
         # print('win_size: ', win_size)
 
 class TrainingInfoCallback(keras.callbacks.Callback):
-    def __init__(self, file_path, model,  batch_size, model_filename, model_backbone_name, experiment, iterations_per_epoch, preprocessing_dict, aug_dict):
+    def __init__(self, file_path, model,  batch_size, model_filename, model_backbone_name, experiment, iterations_per_epoch, preprocessing_dict, aug_dict, best_epoch_kept = 0):
         super(TrainingInfoCallback, self).__init__()
         self.file_path = file_path
         self.model = model
@@ -85,42 +65,55 @@ class TrainingInfoCallback(keras.callbacks.Callback):
         self.iterations_per_epoch = iterations_per_epoch
         self.preprocessing_dict = preprocessing_dict
         self.aug_dict = aug_dict
+        self.best_epoch_kept = best_epoch_kept
 
+    def round_results(self,logs):
+        return {key: round(value, 2) for key, value in logs.items()}
+
+    # logs has the following form: {'train_loss':1.2, 'train_accuracy':0.6, 'val_loss':1.4, 'val_accuracy':0.5}
     def on_epoch_end(self, epoch, logs=None):
-        # Create a dictionary with training info
-        training_info = {
-            "MODEL" : {
-                "NAME" : self.model.name,
-                "BASE"  : self.model_backbone_name,
-                "ARCHITECTURE_INFO" : json.loads(self.model.to_json())
-            },
-            "PROCESSING" : {
-                "PREPROCESSING" : self.preprocessing_dict,
-                "AUGMENTATION" : self.aug_dict
-            },
-            "TRAINING_INFO" : {
-                "EXPERIMENT" : self.experiment,
-                "BATCH_SIZE" : self.batch_size,
-                "ITERATIONS_PER_EPOCH" : self.iterations_per_epoch,
-                "EPOCH" : epoch,
-                "OPTIMIZER" : self.model.optimizer,
-                "LEARNING_RATE" : None
-            },
-            "RESULTS" : {
+        if self.filename in os.listdir(self.file_path):
+            with open(os.path.join(self.file_path,self.filename), 'r') as f:
+                training_info = json.load(f)
+            training_info["RESULTS"][f"epoch {epoch+1}"] = self.round_results(logs)
+            training_info["TRAINING_INFO"]["TOTAL_EPOCHS"] += 1
+            training_info["TRAINING_INFO"]["BEST_EPOCH_KEPT"] = self.best_epoch_kept
 
+
+        else:
+            # Create a dictionary with training info
+            training_info = {
+                "MODEL" : {
+                    "NAME" : self.model.name,
+                    "BASE" : self.model_backbone_name
+                },
+                "PROCESSING" : {
+                    "PREPROCESSING" : self.preprocessing_dict,
+                    "AUGMENTATION"  : self.aug_dict
+                },
+                "TRAINING_INFO" : {
+                    "EXPERIMENT" : self.experiment,
+                    "BATCH_SIZE" : self.batch_size,
+                    "ITERATIONS_PER_EPOCH" : self.iterations_per_epoch,
+                    "OPTIMIZER" : self.model.optimizer._name,
+                    "LEARNING_RATE" : float(self.model.optimizer.learning_rate.numpy()),
+                    "TOTAL_EPOCHS" : 1,
+                    "BEST_EPOCH_KEPT" : self.best_epoch_kept
+                },
+                "RESULTS" : {
+                    "epoch 1" : self.round_results(logs)
+                }
             }
-        }
 
 
         # Save the dictionary as a JSON file
         with open(os.path.join(self.file_path,self.filename), 'w') as file:
             json.dump(training_info, file, indent=4)
 
-        print(f"Training information saved to {self.file_path}")
 
 
 validation_steps = 1000
-training_steps = 40
+training_steps = 500
 batch_size = 32
 epochs = 11
 win_size = 15
@@ -158,44 +151,50 @@ data_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_int
 # Callbacks
 
 iterationLoggingCallback = IterationLoggingCallback()
-checkpointPath = RESULTS_DIRECTORIES_DICT[ex]
+checkpointPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex],get_results_dir_fullpath(ex,N,k))
 # save_weights_only=False,
-checkpointCallBack = ModelCheckpoint(os.path.join(checkpointPath,f"model_{model.name}.h5"),  save_best_only=True, monitor='val_loss', mode='min')
+model_filename = get_checkpoint_filename(checkpointPath, model.name)
+checkpointCallBack = ModelCheckpoint(os.path.join(checkpointPath,model_filename),  save_best_only=True, monitor='val_loss', mode='min')
 checkpointCallBack.set_model(model)
 
-
-def save_history(filepath,history):
-    history_dict = history.history
-    with open(filepath, 'w') as f:
-        for key, values in history_dict.items():
-            f.write(f"{key}:\n")
-            for epoch, value in enumerate(values, 1):
-                f.write(f"  Epoch {epoch}: {value}\n")
-            f.write("\n")
+trainingInfoCallback = TrainingInfoCallback(checkpointPath,model,batch_size,model_filename,cnn_backbone.name,ex,training_steps,preproc_config,aug_config)
 
 
+best_loss = float('inf')
+best_accuracy = 0.0
 
 for epoch_num in range(epochs):
+    # training
+    data_loader.setMode('train')
+    data_loader.set_iterations_per_epoch(training_steps)
+    data_loader.set_batch_size(batch_size)
+    data_loader.set_aug_enabled(aug_enabled)
     print(f"\nEpoch {epoch_num+1:2d}/{epochs}")
+
     # training for 1 epoch
-    history = model.fit(data_loader, epochs=4, shuffle=False, callbacks=[iterationLoggingCallback])
+    history = model.fit(data_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
 
     # validation
     data_loader.setMode('test')
     data_loader.set_iterations_per_epoch(validation_steps)
     data_loader.set_batch_size(1)
     data_loader.set_aug_enabled(False)
+
+    print("Validation")
     val_loss, val_accuracy = model.evaluate(data_loader)
+    logs = {"val_accuracy": val_accuracy, "val_loss": val_loss}
 
-    # passing val_accuracy and val_loss into logs variable for monitoring during training
-    logs = {"val_accuracy" : val_accuracy, "val_loss" : val_loss}
-    checkpointCallBack.on_epoch_end(epoch_num,logs)
-    save_history(os.path.join(checkpointPath,'history.txt'),history)
+    # save model if it has the best performance
+    if(val_loss < best_loss):
+        checkpointCallBack.on_epoch_end(epoch_num,logs)
+        best_loss = val_loss
+        trainingInfoCallback.best_epoch_kept = epoch_num+1
 
-    data_loader.setMode('train')
-    data_loader.set_iterations_per_epoch(training_steps)
-    data_loader.set_batch_size(batch_size)
-    data_loader.set_aug_enabled(aug_enabled)
+    if(val_accuracy > best_accuracy):
+        best_accuracy = val_accuracy
+
+    train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
+    trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
 
 
 print("END")
