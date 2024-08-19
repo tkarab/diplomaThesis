@@ -2,8 +2,7 @@ import json
 import os
 import time
 
-import custom_models
-import fsl_functions
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -15,6 +14,8 @@ import numpy as np
 from model_assembly import *
 from helper_functions import *
 from constants import *
+from custom_models import *
+from fsl_functions import *
 
 def print_array(array, name:str):
     print(f'\t-- {name}\n')
@@ -119,7 +120,7 @@ epochs = 11
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
-cnn_backbone = custom_models.AtzoriNetDB2_embedding_only(input_shape=inp_shape, add_dropout=True, add_regularizer=True)
+cnn_backbone = AtzoriNetDB2_embedding_only(input_shape=inp_shape, add_dropout=True, add_regularizer=True)
 
 
 #input shape tuple
@@ -136,6 +137,7 @@ model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(0
 
 db = 2
 rms = 100
+
 preproc_config = get_config_from_json_file('preproc', 'db2_lpf_minmax')
 
 aug_enabled = True
