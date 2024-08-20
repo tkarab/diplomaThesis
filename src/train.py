@@ -15,6 +15,7 @@ from model_assembly import *
 from helper_functions import *
 from constants import *
 from custom_models import *
+from custom_callbacks import *
 from fsl_functions import *
 
 def print_array(array, name:str):
@@ -45,76 +46,12 @@ def print_array(array, name:str):
 
 
 
-class IterationLoggingCallback(keras.callbacks.Callback):
-    # def on_batch_end(self, batch, logs=None):
-    #     if (batch % 100) == 0:
-    #         # print(f"Batch {batch + 1}: loss = {logs.get('loss'):.2f}\n")
-    #         print()
-    def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(epoch, logs)
-        # print('win_size: ', win_size)
 
-class TrainingInfoCallback(keras.callbacks.Callback):
-    def __init__(self, file_path, model,  batch_size, model_filename, model_backbone_name, experiment, iterations_per_epoch, preprocessing_dict, aug_dict, best_epoch_kept = 0):
-        super(TrainingInfoCallback, self).__init__()
-        self.file_path = file_path
-        self.model = model
-        self.batch_size = batch_size
-        self.filename = model_filename.split('.')[0] + "_training_info.json"
-        self.model_backbone_name = model_backbone_name
-        self.experiment = experiment
-        self.iterations_per_epoch = iterations_per_epoch
-        self.preprocessing_dict = preprocessing_dict
-        self.aug_dict = aug_dict
-        self.best_epoch_kept = best_epoch_kept
-
-    def round_results(self,logs):
-        return {key: round(value, 2) for key, value in logs.items()}
-
-    # logs has the following form: {'train_loss':1.2, 'train_accuracy':0.6, 'val_loss':1.4, 'val_accuracy':0.5}
-    def on_epoch_end(self, epoch, logs=None):
-        if self.filename in os.listdir(self.file_path):
-            with open(os.path.join(self.file_path,self.filename), 'r') as f:
-                training_info = json.load(f)
-            training_info["RESULTS"][f"epoch {epoch+1}"] = self.round_results(logs)
-            training_info["TRAINING_INFO"]["TOTAL_EPOCHS"] += 1
-            training_info["TRAINING_INFO"]["BEST_EPOCH_KEPT"] = self.best_epoch_kept
-
-
-        else:
-            # Create a dictionary with training info
-            training_info = {
-                "MODEL" : {
-                    "NAME" : self.model.name,
-                    "BASE" : self.model_backbone_name
-                },
-                "PROCESSING" : {
-                    "PREPROCESSING" : self.preprocessing_dict,
-                    "AUGMENTATION"  : self.aug_dict
-                },
-                "TRAINING_INFO" : {
-                    "EXPERIMENT" : self.experiment,
-                    "BATCH_SIZE" : self.batch_size,
-                    "ITERATIONS_PER_EPOCH" : self.iterations_per_epoch,
-                    "OPTIMIZER" : self.model.optimizer._name,
-                    "LEARNING_RATE" : float(self.model.optimizer.learning_rate.numpy()),
-                    "TOTAL_EPOCHS" : 1,
-                    "BEST_EPOCH_KEPT" : self.best_epoch_kept
-                },
-                "RESULTS" : {
-                    "epoch 1" : self.round_results(logs)
-                }
-            }
-
-
-        # Save the dictionary as a JSON file
-        with open(os.path.join(self.file_path,self.filename), 'w') as file:
-            json.dump(training_info, file, indent=4)
 
 
 
 validation_steps = 1000
-training_steps = 500
+training_steps = 10
 batch_size = 32
 epochs = 11
 win_size = 15
