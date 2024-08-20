@@ -18,36 +18,6 @@ from custom_models import *
 from custom_callbacks import *
 from fsl_functions import *
 
-def print_array(array, name:str):
-    print(f'\t-- {name}\n')
-    try:
-        array = array.numpy()
-    except AttributeError:
-        pass
-    shape = array.shape
-    l = len(shape)
-    if l==1:
-        print(array,'\n\n')
-        return
-
-    elif l == 2:
-        array = np.expand_dims(array,axis=1)
-        shape = array.shape
-
-    cols = shape[0]
-
-    for j in range(shape[1]):
-        for i in range(cols):
-            print(array[i][j], end="\t\t")
-        print()
-
-    print('\n\n')
-    return
-
-
-
-
-
 
 
 validation_steps = 1000
