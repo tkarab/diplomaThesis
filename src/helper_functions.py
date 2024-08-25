@@ -137,9 +137,9 @@ def get_results_dir_fullpath(ex : str, N:int, k:int):
 
     To provide mode info for the model and the training process in general a .txt file wll be provided
 """
-def get_checkpoint_filename(dir_path, model_name):
-    name = f"model_{model_name}_1.h5"
-    if name in os.listdir(dir_path):
+def get_checkpoint_foldername(dir_path, model_name):
+    name = f"model_{model_name}_1"
+    while name in os.listdir(dir_path):
         num = int((name.split('.')[0]).split('_')[-1])
-        name = f"model_{model_name}_{num + 1}.h5"
+        name = f"model_{model_name}_{num + 1}"
     return name
