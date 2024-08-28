@@ -15,13 +15,14 @@ from constants import *
 from custom_models import *
 from custom_callbacks import *
 from fsl_functions import *
+from flags import *
 
 def keep_result_lines_until_best(filepath, epoch_to_keep_until):
     with open(filepath, 'r') as f_read:
         lines = f_read.readlines()
         lines_to_keep = lines[:2]
         for line in lines[2:]:
-            if int(line[0]) <= epoch_to_keep_until:
+            if int(line[0]) <= epoch_to_keep_until: #TODO - Fix so that the whole number of the line is read
                 lines_to_keep.append(line)
 
     with open(filepath, 'w') as f_write:
@@ -87,7 +88,7 @@ validation_steps = 1000
 training_steps = 10
 starting_epoch = 0
 batch_size = 32
-epochs = 11
+epochs = 30
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
@@ -105,14 +106,20 @@ aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
 
+# DB and rms
 db = 2
 rms = 100
 
+# experiment, way, shot
 ex = '1'
 N = 5
 k = 5
 
-LOAD_EXISTING_MODEL = True
+# Results
+best_loss = float('inf')
+best_accuracy = 0.0
+
+
 model_name = 'model_protoNet_1'
 resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
 
@@ -151,15 +158,25 @@ data_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_int
 # Callbacks
 # Logger
 iterationLoggingCallback = IterationLoggingCallback()
+
 # Checkpoint
 checkpointCallBack = ModelCheckpoint(model_fullpath, save_best_only=True, monitor='val_loss', mode='min')
 checkpointCallBack.set_model(model)
+
 # Training info
 trainingInfoCallback = TrainingInfoCallback(resultsPath, model, batch_size, model_foldername, cnn_backbone.name, ex, training_steps, validation_steps, preproc_config, aug_enabled, aug_config, data_intake, rms, db)
 
-best_loss = float('inf')
-best_accuracy = 0.0
-epoch_num = starting_epoch
+# LR Adjustment
+reduction_factor = 0.5
+patience = 2
+cooldown_patience = 2
+min_lr = 1e-4
+min_delta = 0.001
+#lr_adjustment_callback = ReduceLrOnPlateauCustom(model=model, reduction_factor=reduction_factor, patience=patience,cooldown_patience=cooldown_patience,min_lr=min_lr, min_delta=min_delta, best_val_loss=best_loss)
+lr_adjustment_callback = ReduceLrSteadilyCustom(model=model, reduction_factor=reduction_factor,patience=patience,min_lr=min_lr)
+
+
+early_stopping_mode_on = EARLY_STOPPING_ENABLED and (not LR_SCHEDULER_ENABLED)
 
 for epoch_num in range(starting_epoch, starting_epoch+epochs):
     # training
@@ -194,6 +211,16 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     # Write results
     train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
     trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
+
+    if LR_SCHEDULER_ENABLED:
+        min_lr_reached = lr_adjustment_callback.on_epoch_end(epoch_num,logs)
+
+        if min_lr_reached and EARLY_STOPPING_ENABLED:
+            early_stopping_mode_on = True
+
+    if early_stopping_mode_on:
+        continue
+
 
 
 print("END")
