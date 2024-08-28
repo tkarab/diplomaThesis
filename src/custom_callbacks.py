@@ -13,12 +13,12 @@ class IterationLoggingCallback(keras.callbacks.Callback):
         # print('win_size: ', win_size)
 
 class TrainingInfoCallback(keras.callbacks.Callback):
-    def __init__(self, file_path, model,  batch_size, model_filename, model_backbone_name, experiment, iterations_per_epoch, validation_steps, preprocessing_dict, aug_enabled, aug_dict, data_intake, rms, db,best_epoch_kept = 0):
+    # TODO - take into account changes regarding best_val_loss etc
+    def __init__(self, file_path, model,  batch_size, model_filename, model_backbone_name, experiment, iterations_per_epoch, validation_steps, preprocessing_dict, aug_enabled, aug_dict, data_intake, rms, db):
         super(TrainingInfoCallback, self).__init__()
         self.file_path = file_path
         self.model = model
         self.batch_size = batch_size
-        self.best_epoch_lr = float(self.model.optimizer.learning_rate.numpy())
 
         # 'model_protoNet_1.h5' -> 'model_protoNet_1'
         model_filename = model_filename.split('.')[0]
@@ -34,24 +34,57 @@ class TrainingInfoCallback(keras.callbacks.Callback):
         self.preprocessing_dict = preprocessing_dict
         self.aug_enabled = aug_enabled
         self.aug_dict = aug_dict
-        self.best_epoch_kept = best_epoch_kept
+
+
+        self.best_epoch_val_loss = 0
+        self.best_epoch_val_acc = 0
+
+        self.best_val_loss = float('inf')
+        self.best_val_acc = 0.0
+
+        self.best_loss_lr = self.get_lr()
+        self.best_acc_lr = self.get_lr()
+
+        self.load_results_if_exist()
 
         self.data_intake = data_intake
-        self.rms        = rms
-        self.db         = db
+        self.rms         = rms
+        self.db          = db
+
+    def load_results_if_exist(self):
+        if os.path.exists(self.json_fullpath):
+            if os.path.exists(self.json_fullpath):
+                with open(self.json_fullpath, 'r') as f:
+                    training_info = json.load(f)
+
+            self.best_epoch_val_loss = training_info["RESULTS"]["BEST_EPOCH_LOSS"]
+            self.best_epoch_val_acc = training_info["RESULTS"]["BEST_EPOCH_ACC"]
+            self.best_val_loss = training_info["RESULTS"]["BEST_VAL_LOSS"]
+            self.best_val_acc = training_info["RESULTS"]["BEST_VAL_ACC"]
+            self.best_loss_lr = training_info["RESULTS"]["BEST_EPOCH_LOSS_LEARNING_RATE"]
+            self.best_acc_lr = training_info["RESULTS"]["BEST_EPOCH_ACC_LEARNING_RATE"]
+
 
     def round_results(self,logs):
         return {key: round(value, 4) for key, value in logs.items()}
 
+    def get_lr(self):
+        return float(self.model.optimizer.learning_rate.numpy())
     def update_json_log_file(self,epoch):
         if os.path.exists(self.json_fullpath):
-            with open(os.path.join(self.file_path,self.json_filename), 'r') as f:
+            with open(self.json_fullpath, 'r') as f:
                 training_info = json.load(f)
             # training_info["RESULTS"][f"epoch {epoch+1}"] = self.round_results(logs)
-            training_info["TRAINING_INFO"]["TOTAL_EPOCHS"] = epoch+1
-            training_info["TRAINING_INFO"]["BEST_EPOCH_KEPT"] = self.best_epoch_kept
-            training_info["TRAINING_INFO"]["LATEST_EPOCH_LEARNING_RATE"] = float(self.model.optimizer.learning_rate.numpy())
-            training_info["TRAINING_INFO"]["BEST_EPOCH_LEARNING_RATE"] = self.best_epoch_lr
+            training_info["RESULTS"]["TOTAL_EPOCHS"] = epoch+1
+            training_info["RESULTS"]["LATEST_EPOCH_LEARNING_RATE"] = self.get_lr()
+
+            training_info["RESULTS"]["BEST_VAL_LOSS"] = self.best_val_loss
+            training_info["RESULTS"]["BEST_EPOCH_LOSS"] = self.best_epoch_val_loss
+            training_info["RESULTS"]["BEST_EPOCH_LOSS_LEARNING_RATE"] = self.best_loss_lr
+
+            training_info["RESULTS"]["BEST_VAL_ACC"] = self.best_val_acc
+            training_info["RESULTS"]["BEST_EPOCH_ACC"] = self.best_epoch_val_acc
+            training_info["RESULTS"]["BEST_EPOCH_ACC_LEARNING_RATE"] = self.best_acc_lr
 
         else:
             # Create a dictionary with training info
@@ -73,10 +106,16 @@ class TrainingInfoCallback(keras.callbacks.Callback):
                     "OPTIMIZER" : self.model.optimizer._name,
                     "LOSS" : self.model.loss,
                     "METRICS" : self.model.metrics_names,
-                    "TOTAL_EPOCHS" : 1,
-                    "LATEST_EPOCH_LEARNING_RATE": float(self.model.optimizer.learning_rate.numpy()),
-                    "BEST_EPOCH_KEPT" : self.best_epoch_kept,
-                    "BEST_EPOCH_LEARNING_RATE": float(self.model.optimizer.learning_rate.numpy())
+                },
+                "RESULTS": {
+                    "TOTAL_EPOCHS": epoch + 1,
+                    "BEST_VAL_LOSS": self.best_val_loss,
+                    "BEST_VAL_ACC": self.best_val_acc,
+                    "BEST_EPOCH_LOSS": self.best_epoch_val_loss,
+                    "BEST_EPOCH_ACC": self.best_epoch_val_acc,
+                    "LATEST_EPOCH_LEARNING_RATE": self.get_lr(),
+                    "BEST_EPOCH_LOSS_LEARNING_RATE": self.best_loss_lr,
+                    "BEST_EPOCH_ACC_LEARNING_RATE": self.best_acc_lr
                 },
                 "DATA_GENERATOR" : {
                     "DATA_INTAKE" : self.data_intake,
