@@ -143,3 +143,29 @@ def get_checkpoint_foldername(dir_path, model_name):
         num = int((name.split('.')[0]).split('_')[-1])
         name = f"model_{model_name}_{num + 1}"
     return name
+
+
+"""
+PARAMETERS
+    criterion: 'latest', 'best_loss' or 'best_acc'
+"""
+def get_model_checkpoint_fullname(model_name, criterion):
+    if criterion == 'latest':
+        return model_name + '.h5'
+    elif criterion == 'best_loss':
+        return model_name + '_best_loss' + '.h5'
+    elif criterion == 'best_acc':
+        return model_name + '_best_acc' + '.h5'
+
+
+"""
+DESCRIPTION
+    Takes as input a line in the form "7    	0.3781         	1.4724         	0.3410         	1.6121"
+    and returns 7
+"""
+def get_line_starting_number(line):
+    i=0
+    while line[i].isdigit():
+        i+=1
+
+    return int(line[:i])

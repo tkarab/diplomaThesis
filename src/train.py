@@ -22,7 +22,7 @@ def keep_result_lines_until_best(filepath, epoch_to_keep_until):
         lines = f_read.readlines()
         lines_to_keep = lines[:2]
         for line in lines[2:]:
-            if int(line[0]) <= epoch_to_keep_until: #TODO - Fix so that the whole number of the line is read
+            if get_line_starting_number(line) <= epoch_to_keep_until: #TODO - Fix so that the whole number of the line is read
                 lines_to_keep.append(line)
 
     with open(filepath, 'w') as f_write:
@@ -31,7 +31,11 @@ def keep_result_lines_until_best(filepath, epoch_to_keep_until):
 
     return
 
-def get_training_config_from_json_file(json_filename):
+"""
+PARAMETERS
+    criterion : 'latest', 'best_loss' or 'best_acc'
+"""
+def get_training_config_from_json_file(json_filename,criterion):
     # training parameters
     global validation_steps
     global training_steps
@@ -54,6 +58,10 @@ def get_training_config_from_json_file(json_filename):
     global db
     global rms
 
+    # accuracy and loss
+    global best_val_loss
+    global best_val_accuracy
+
     with open(json_filename) as f:
         info = json.load(f)
         # Processing
@@ -66,13 +74,25 @@ def get_training_config_from_json_file(json_filename):
         validation_steps = info["TRAINING_INFO"]["VALIDATION_STEPS"]
         batch_size       = info["TRAINING_INFO"]["BATCH_SIZE"]
         optimizer_name   = info["TRAINING_INFO"]["OPTIMIZER"]
-        learning_rate    = info["TRAINING_INFO"]["BEST_EPOCH_LEARNING_RATE"]
         loss             = info["TRAINING_INFO"]["LOSS"]
         metrics          = info["TRAINING_INFO"]["METRICS"]
-        starting_epoch   = info["TRAINING_INFO"]["BEST_EPOCH_KEPT"]
-
         if 'loss' in metrics:
             metrics.remove('loss')
+
+        # Results
+        best_val_accuracy = info["RESULTS"]["BEST_VAL_ACC"]
+        best_val_loss = info["RESULTS"]["BEST_VAL_LOSS"]
+        if criterion == "latest":
+            learning_rate = info["RESULTS"]["LATEST_EPOCH_LEARNING_RATE"]
+            starting_epoch = info["RESULTS"]["TOTAL_EPOCHS"]
+        elif criterion == "best_acc":
+            learning_rate = info["RESULTS"]["BEST_EPOCH_ACC_LEARNING_RATE"]
+            starting_epoch = info["RESULTS"]["BEST_EPOCH_ACC"]
+        elif criterion == "best_loss":
+            learning_rate = info["RESULTS"]["BEST_EPOCH_LOSS_LEARNING_RATE"]
+            starting_epoch = info["RESULTS"]["BEST_EPOCH_LOSS"]
+        else:
+            exit("Wrong 'criterion' input in get_training_config_from_json_file()")
 
         # Data generator
         data_intake = info["DATA_GENERATOR"]["DATA_INTAKE"]
@@ -92,19 +112,13 @@ epochs = 30
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
-cnn_backbone = AtzoriNetDB2_embedding_only(input_shape=inp_shape, add_dropout=True, add_regularizer=True)
 learning_rate = 0.001
 optimizer = keras.optimizers.Adam(learning_rate)
-loss = 'categorical_crossentropy'
+loss_function = 'categorical_crossentropy'
 metrics = ['categorical_accuracy']
 
 #input shape tuple
 inp_shape_5d = (None,) + inp_shape
-
-preproc_config = get_config_from_json_file('preproc', 'db2_lpf_minmax')
-aug_enabled = True
-aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
-data_intake = 'generate'
 
 # DB and rms
 db = 2
@@ -116,39 +130,70 @@ N = 5
 k = 5
 
 # Results
-best_loss = float('inf')
-best_accuracy = 0.0
+best_val_loss = float('inf')
+best_val_accuracy = 0.0
 
 
-model_name = 'model_protoNet_1'
+cnn_backbone = AtzoriNetDB2_embedding_only(input_shape=inp_shape, add_dropout=True, add_regularizer=True)
+
 resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
+
+# In case of LOAD_EXISTING_MODEL == True
+model_name = 'model_protoNet_2'
+
+# criterion = 'best_loss'
+criterion = 'best_acc'
+# criterion = 'latest'
+
 
 if not LOAD_EXISTING_MODEL:
     print("Creating new model...\n")
     model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-
+    model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
     model_foldername = get_checkpoint_foldername(resultsPath, model.name)
     print("Name:",model.name,'\n')
-    model_filename = model_foldername + '.h5'
+
+    #Results
     resultsPath = os.path.join(resultsPath, model_foldername)
     os.mkdir(resultsPath)
-    model_fullpath = os.path.join(resultsPath, model_filename)
-    print(f"...model saved at '{model_fullpath}'")
+    checkpoint_latest_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='latest'))
+    checkpoint_best_acc_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_acc'))
+    checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
+
+    # Save initial state for all 3 models
+    model.save(checkpoint_latest_path)
+    model.save(checkpoint_best_loss_path)
+    model.save(checkpoint_best_acc_path)
+
+    print(f"...model saved at '{resultsPath}'")
 
 else:
     print("Loading existing model...\n")
-    print(f"Name: {model_name}.h5\n")
+    print(f"Name: {model_name}\n")
+    print(f"Criterion: {criterion}\n")
+
     model_foldername = model_name
-    model_filename = model_foldername + '.h5'
+
+    # Results paths
     resultsPath = os.path.join(resultsPath, model_foldername)
-    model_fullpath = os.path.join(resultsPath, model_filename)
-    get_training_config_from_json_file(os.path.join(resultsPath,model_foldername + "_training_info.json"))
+    checkpoint_latest_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='latest'))
+    checkpoint_best_acc_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_acc'))
+    checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
+
+    load_model_fullpath = {"latest":checkpoint_latest_path, "best_acc":checkpoint_best_acc_path, "best_loss":checkpoint_best_loss_path}[criterion]
+
+    get_training_config_from_json_file(os.path.join(resultsPath,model_foldername + "_training_info.json"),criterion)
     keep_result_lines_until_best(filepath=os.path.join(resultsPath,model_foldername + "_results.txt"),epoch_to_keep_until=starting_epoch)
     print(f"...model loaded. Resuming training from epoch {starting_epoch}")
 
-    model = keras.models.load_model(model_fullpath)
-    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+    model = keras.models.load_model(load_model_fullpath)
+    model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
+
+
+preproc_config = get_config_from_json_file('preproc', 'db2_lpf_minmax')
+aug_enabled = True
+aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
+data_intake = 'generate'
 
 data_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps, print_labels=True, print_labels_frequency=5)
 
@@ -160,8 +205,14 @@ data_loader = TaskGenerator(experiment=ex, way=N, shot=k, mode='train', data_int
 iterationLoggingCallback = IterationLoggingCallback()
 
 # Checkpoint
-checkpointCallBack = ModelCheckpoint(model_fullpath, save_best_only=True, monitor='val_loss', mode='min')
-checkpointCallBack.set_model(model)
+checkpointCallBack_val_loss = ModelCheckpoint(checkpoint_best_loss_path, save_best_only=True, monitor='val_loss', mode='min')
+checkpointCallBack_val_loss.set_model(model)
+
+checkpointCallBack_val_acc = ModelCheckpoint(checkpoint_best_acc_path, save_best_only=True, monitor='val_accuracy', mode='min')
+checkpointCallBack_val_acc.set_model(model)
+
+checkpointCallBack_latest = ModelCheckpoint(checkpoint_latest_path, save_freq='epoch')
+checkpointCallBack_latest.set_model(model)
 
 # Training info
 trainingInfoCallback = TrainingInfoCallback(resultsPath, model, batch_size, model_foldername, cnn_backbone.name, ex, training_steps, validation_steps, preproc_config, aug_enabled, aug_config, data_intake, rms, db)
@@ -199,14 +250,23 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     logs = {"val_accuracy": val_accuracy, "val_loss": val_loss}
 
     # Model checkpoint: save model if it has the best performance
-    if(val_loss < best_loss):
-        checkpointCallBack.on_epoch_end(epoch_num,logs)
-        best_loss = val_loss
-        trainingInfoCallback.best_epoch_kept = epoch_num+1
-        trainingInfoCallback.best_epoch_lr = float(model.optimizer.learning_rate.numpy())
+    if(val_loss < best_val_loss):
+        best_val_loss = val_loss
+        checkpointCallBack_val_loss.on_epoch_end(epoch_num, logs)
 
-    if(val_accuracy > best_accuracy):
-        best_accuracy = val_accuracy
+        trainingInfoCallback.best_val_loss = best_val_loss
+        trainingInfoCallback.best_epoch_val_loss = epoch_num+1
+        trainingInfoCallback.best_loss_lr = float(model.optimizer.learning_rate.numpy())
+
+    if(val_accuracy > best_val_accuracy):
+        best_val_accuracy = val_accuracy
+        checkpointCallBack_val_acc.on_epoch_end(epoch_num,logs)
+
+        trainingInfoCallback.best_val_acc = best_val_accuracy
+        trainingInfoCallback.best_epoch_val_acc = epoch_num+1
+        trainingInfoCallback.best_acc_lr = float(model.optimizer.learning_rate.numpy())
+
+    checkpointCallBack_latest.on_epoch_end(epoch_num, logs)
 
     # Write results
     train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
