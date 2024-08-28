@@ -136,7 +136,7 @@ class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
         self.cooldown_counter = cooldown_counter
 
     def on_epoch_end(self, epoch, logs=None):
-        current_lr = logs['current_lr']
+        current_lr = float(self.model.optimizer.learning_rate.numpy())
         val_loss = logs['val_loss']
         val_accuracy = logs['val_accuracy']
         min_lr_reached = (current_lr <= self.min_lr)
@@ -184,4 +184,37 @@ class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
         return min_lr_reached
 
 
+class ReduceLrSteadilyCustom(keras.callbacks.Callback):
+    def __init__(self,model,reduction_factor,patience, patience_counter=0, min_lr=1e-5):
+        super(ReduceLrSteadilyCustom,self).__init__()
+        self.model = model
+        self.reduction_factor = reduction_factor
+        self.patience = patience
+        self.counter = patience_counter
+        self.min_lr = min_lr
+        
+    def on_epoch_end(self, epoch, logs=None):
+        self.counter += 1
+        current_lr = float(self.model.optimizer.learning_rate.numpy())
+        min_lr_reached = False
+
+        if current_lr <= self.min_lr:
+            print("Minimum lr already reached")
+            return True
+        # If reached enough epochs
+        if self.counter >= self.patience:
+            current_lr = current_lr*self.reduction_factor
+
+            if current_lr <= self.min_lr:
+                print(f"Minimum lr {self.min_lr:.6} reached")
+                new_lr = self.min_lr
+                min_lr_reached = True
+            else:
+                new_lr = current_lr
+
+            print(f"New lr value: {new_lr:.6f}")
+            self.model.optimizer.learning_rate.assign(new_lr)
+            self.counter = 0
+
+        return min_lr_reached
 
