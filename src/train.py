@@ -15,6 +15,7 @@ from constants import *
 from custom_models import *
 from custom_callbacks import *
 from fsl_functions import *
+from flags import *
 
 def keep_result_lines_until_best(filepath, epoch_to_keep_until):
     with open(filepath, 'r') as f_read:
@@ -118,7 +119,7 @@ k = 5
 best_loss = float('inf')
 best_accuracy = 0.0
 
-LOAD_EXISTING_MODEL = True
+
 model_name = 'model_protoNet_1'
 resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
 
@@ -175,6 +176,8 @@ min_delta = 0.001
 lr_adjustment_callback = ReduceLrSteadilyCustom(model=model, reduction_factor=reduction_factor,patience=patience,min_lr=min_lr)
 
 
+early_stopping_mode_on = EARLY_STOPPING_ENABLED and (not LR_SCHEDULER_ENABLED)
+
 for epoch_num in range(starting_epoch, starting_epoch+epochs):
     # training
     data_loader.setMode('train')
@@ -209,7 +212,15 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
     trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
 
-    lr_adjustment_callback.on_epoch_end(epoch_num,logs)
+    if LR_SCHEDULER_ENABLED:
+        min_lr_reached = lr_adjustment_callback.on_epoch_end(epoch_num,logs)
+
+        if min_lr_reached and EARLY_STOPPING_ENABLED:
+            early_stopping_mode_on = True
+
+    if early_stopping_mode_on:
+        continue
+
 
 
 print("END")
