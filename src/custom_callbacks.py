@@ -115,3 +115,73 @@ class TrainingInfoCallback(keras.callbacks.Callback):
         self.update_txt_results_file(epoch,logs)
 
         return
+
+class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
+    def __init__(self, model, reduction_factor, min_delta, best_val_loss, patience, cooldown_patience, epochs_without_improvement=0, cooldown_counter=0, min_lr=1e-5):
+        super(ReduceLrOnPlateauCustom,self).__init__()
+
+        # Model and values
+        self.model = model
+        self.min_delta = min_delta
+        self.best_val_loss = best_val_loss
+        self.min_lr = min_lr
+        self.reduction_factor = reduction_factor
+
+        # Lr reduction patience
+        self.patience = patience
+        self.epochs_without_improvement = epochs_without_improvement
+
+        # Cooldown patience
+        self.cooldown_patience = cooldown_patience
+        self.cooldown_counter = cooldown_counter
+
+    def on_epoch_end(self, epoch, logs=None):
+        current_lr = logs['current_lr']
+        val_loss = logs['val_loss']
+        val_accuracy = logs['val_accuracy']
+        min_lr_reached = (current_lr <= self.min_lr)
+        if min_lr_reached == True:
+            return True
+        improvement_made = False
+
+        # Improvement
+        if val_loss < self.best_val_loss - self.min_delta:
+            print(f"new best loss {val_loss:.2f}")
+            self.best_val_loss = val_loss
+            self.epochs_without_improvement = 0
+            improvement_made = True
+
+        # If in cooldown mode no need to make any change yet
+        if self.cooldown_counter > 0:
+            print("You are in cooldown mode")
+            self.cooldown_counter -= 1
+            return min_lr_reached
+
+        # No improvement
+        if not improvement_made:
+            self.epochs_without_improvement += 1
+            # If Maximum epochs without improvement reached
+            if self.epochs_without_improvement >= self.patience:
+                # Calculate new lr
+                # multiply current lr with the reduction factor
+                current_lr = current_lr * self.reduction_factor
+
+                if current_lr <= self.min_lr:
+                    min_lr_reached = True
+                    new_lr = self.min_lr
+                    print(f"Minimum learning rate of {self.min_lr} reached")
+                else:
+                    new_lr = current_lr
+
+                print(f"Reducing learning rate to {new_lr}")
+                self.model.optimizer.learning_rate.assign(new_lr)
+
+                # Reset epochs without improvement counter and enter cooldown
+                self.epochs_without_improvement = 0
+                print("Entering cooldown")
+                self.cooldown_counter = self.cooldown_patience
+
+        return min_lr_reached
+
+
+
