@@ -1,6 +1,7 @@
 import os
+BASE = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή'
 
-ROOT = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική'
+ROOT = BASE + r'\Διπλωματική'
 
 DATA_PATH = ROOT + r'\Δεδομένα'
 NINAPRO_PATH = ROOT + r'\Δεδομένα\Ninapro'
@@ -35,4 +36,10 @@ DATA_CONFIG_PATH = r'C:\PycharmProjects\diplomaThesis\src\config'
 DATA_CONFIG_PATH_PREPROC = os.path.join(DATA_CONFIG_PATH,'preproc')
 DATA_CONFIG_PATH_AUG = os.path.join(DATA_CONFIG_PATH, 'aug')
 
-
+if __name__ == "__main__":
+    desired_base = r'C:\Users\UPDATER'
+    path = os.path.join(desired_base,'Διπλωματική')
+    try:
+        os.mkdir(path)
+    except FileExistsError:
+        print(f"'{path}' already exists")
