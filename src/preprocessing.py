@@ -2,12 +2,12 @@ import json
 
 import numpy as np
 import time
-import constants
 import os
-import helper_functions
 import scipy
 import plot_functions as pl
 import data_augmentation as aug
+from helper_functions import *
+from constants import *
 
 """
     For segmenting sEMG signal using sliding window of given shape and size
@@ -155,8 +155,8 @@ def apply_preprocessing(data_path, config_dict:dict, db:int):
 preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "M-LAW", "MIN-MAX", "SEGMENT"]
 
 preprocess_funcs = {
-    "DISCARD"   :   discard_early_and_late_gest_stages,
     "SUBSAMPLE" :   subsample,
+    "DISCARD"   :   discard_early_and_late_gest_stages,
     "LOWPASS"   :   applyLPFilter,
     "M-LAW"     :   None,
     "MIN-MAX"   :   minmax_norm,
@@ -165,10 +165,20 @@ preprocess_funcs = {
 
 
 if __name__ == "__main__":
-    config = helper_functions.get_config_from_json_file(mode="preproc", filename='db2_lpf')
-    data_dir_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, r'db2_rms_200\db2_rms_200.npz')
-    data_proc, segments = apply_preprocessing(data_dir_path, config,2)
+    new_freq = 100
+    for rms in [50,100,150,250]:
+        unsampled_data_path = os.path.join(RMS_DATA_PATH_DB2,get_rms_rect_filename(2,rms))
+        data = np.load(unsampled_data_path)
+        subsampled_data = {}
 
-    aug_config = helper_functions.get_config_from_json_file('aug','db2_awgn')
-    aug.apply_augmentation(data_proc, aug_config)
+        t1 = time.time()
+        for key,emg in data.items():
+            emg_sub = subsample(emg,2000,new_freq=new_freq)
+            subsampled_data[key] = emg_sub
+        total_time = time.time() - t1
+        print(f"total time for subsampling {len(data.items())} recordings: {total_time:.2f}s")
 
+        new_path = os.path.join(RMS_DATA_PATH_DB2,get_rms_sub_filename(2,rms,new_freq))
+        np.savez(new_path,**subsampled_data)
+
+        print(f"rms {rms} done")

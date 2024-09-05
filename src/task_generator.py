@@ -44,10 +44,14 @@ sgr_domains = {
 }
 
 class FileInfoProvider:
-    def __init__(self, db, rms, N, k, ex, mode):
+    def __init__(self, db, rms, N, k, ex, mode,get_subsampled_data:bool=False):
         if db == 2:
             self.data_directory = RMS_DATA_PATH_DB2
-            self.data_filepath = os.path.join(self.data_directory, get_rms_rect_filename(db, rms))
+            if get_subsampled_data == True:
+                self.data_filepath = os.path.join(self.data_directory, get_rms_sub_filename(db, rms,100))
+            else:
+                self.data_filepath = os.path.join(self.data_directory, get_rms_rect_filename(db, rms))
+
         elif db == 1:
             self.data_directory = PROCESSED_DATA_PATH_DB1
             self.data_filepath = os.path.join(self.data_directory,'db1_raw.npz')
@@ -97,7 +101,7 @@ class TaskGenerator(utils.Sequence):
         self.preproc_config = preprocessing_config
         self.window_size = self.getWindowSize()
         self.rms_win_size = rms_win_size
-        self.fileInfoProvider = FileInfoProvider(self.db, self.rms_win_size, N = self.way, k = self.shot, ex = self.experiment, mode=self.mode)
+        self.fileInfoProvider = FileInfoProvider(self.db, self.rms_win_size, N = self.way, k = self.shot, ex = self.experiment, mode=self.mode, get_subsampled_data=True)
 
         self.aug_enabled = aug_enabled
         if self.aug_enabled == True:

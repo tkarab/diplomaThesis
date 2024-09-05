@@ -73,6 +73,10 @@ DESCRIPTION
 def get_rms_rect_filename(db, win_size_ms):
     return f"db{db}_rms_{win_size_ms}.npz"
 
+def get_rms_sub_filename(db, win_size_ms,new_freq):
+    return f"db{db}_rms_{win_size_ms}_sub_{new_freq}.npz"
+
+
 
 """
 DESCRIPTION
@@ -169,3 +173,4 @@ def get_line_starting_number(line):
         i+=1
 
     return int(line[:i])
+
