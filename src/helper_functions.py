@@ -34,7 +34,7 @@ def printKeys(keys):
         print("| |", end='')
         for i in range(len(keys)):
             # Key takes up 8 cells of space
-            print("{:<8}".format(keys[i][j]),end="| |")
+            print(keys[i][j],end="| |")
         print()
 
 

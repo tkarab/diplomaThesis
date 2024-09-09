@@ -185,7 +185,7 @@ class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
 
         # Improvement
         if val_loss < self.best_val_loss - self.min_delta:
-            print(f"new best loss {val_loss:.2f}")
+            print(f"new best loss {val_loss:.4f}")
             self.best_val_loss = val_loss
             self.epochs_without_improvement = 0
             improvement_made = True
