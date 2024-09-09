@@ -5,7 +5,7 @@ import sys
 import random
 import tensorflow as tf
 import fsl_functions
-# import custom_models
+import custom_models
 import constants
 import time
 import helper_functions
@@ -25,20 +25,12 @@ N = 4
 # channels = signals[random.choice(keys)].shape[1]
 # max_length = np.max([signal.shape[0] for signal in signals.values()])
 
-
-channels = 3
-max_length = 10
-columns = [f's{i+1}c{j+1}' for i in range(N) for j in range(channels)]
-df = pd.DataFrame(columns=columns)
-
-for i in range(N):
-    start = 10 + max_length*i
-    a = np.tile(np.arange(start,start+max_length),[channels,1]).T
-    keys = columns[i*channels:(i+1)*channels]
-    df[keys] = a
-
-keys = [list(keyset) for keyset in np.reshape(np.array(columns),[N,channels])]
+cnn1 = custom_models.AtzoriNetDB2_embedding_only()
+cnn2 = custom_models.AtzoriNetDB2_embedding_only_extra_layers_added(extra_layers=3)
+print(cnn1.summary())
+print(cnn2.summary())
 print()
+
 
 
 

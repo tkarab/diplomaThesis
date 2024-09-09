@@ -104,6 +104,20 @@ def get_training_config_from_json_file(json_filename,criterion):
 
     return
 
+
+def testModel():
+    global data_loader
+    data_loader.setMode('test')
+    data_loader.set_iterations_per_epoch(20000)
+    data_loader.set_batch_size(1)
+    data_loader.set_aug_enabled(False)
+    print("Test")
+    test_loss, test_accuracy = model.evaluate(data_loader)
+    print('test_loss:', test_loss)
+    print('test_accuracy', test_accuracy)
+
+    return
+
 validation_steps = 1000
 training_steps = 10
 starting_epoch = 0
@@ -190,7 +204,7 @@ else:
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
 
 
-preproc_config = get_config_from_json_file('preproc', 'db2_lpf_minmax')
+preproc_config = get_config_from_json_file('preproc', "db2_lpf_minmax_discard_3.5")
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
@@ -241,7 +255,11 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     history = model.fit(data_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
 
     # validation
-    data_loader.setMode('test')
+    if ex == '1':
+        data_loader.setMode('test')
+    else:
+        data_loader.setMode('val')
+
     data_loader.set_iterations_per_epoch(validation_steps)
     data_loader.set_batch_size(1)
     data_loader.set_aug_enabled(False)
@@ -281,7 +299,7 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     if early_stopping_mode_on:
         continue
 
-
+testModel()
 
 print("END")
 
