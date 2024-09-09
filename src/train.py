@@ -204,7 +204,7 @@ else:
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
 
 
-preproc_config = get_config_from_json_file('preproc', 'db2_lpf_minmax')
+preproc_config = get_config_from_json_file('preproc', "db2_lpf_minmax_discard_3.5")
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
