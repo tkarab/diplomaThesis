@@ -2,7 +2,7 @@ import os.path
 import re
 import numpy as np
 import json
-import constants
+from constants import *
 
 """
 DESCRIPTION
@@ -34,7 +34,7 @@ def printKeys(keys):
         print("| |", end='')
         for i in range(len(keys)):
             # Key takes up 8 cells of space
-            print("{:<8}".format(keys[i][j]),end="| |")
+            print(keys[i][j],end="| |")
         print()
 
 
@@ -70,8 +70,12 @@ DESCRIPTION
     rms rectified (created offline) with a certain window size (in ms) 
     i.e. 'db2_rms_100'
 """
-def get_rmsRect_dirname(db, win_size_ms):
-    return f"db{db}_rms_{win_size_ms}"
+def get_rms_rect_filename(db, win_size_ms):
+    return f"db{db}_rms_{win_size_ms}.npz"
+
+def get_rms_sub_filename(db, win_size_ms,new_freq):
+    return f"db{db}_rms_{win_size_ms}_sub_{new_freq}.npz"
+
 
 
 """
@@ -98,9 +102,9 @@ PARAMETERS
 def get_config_from_json_file(mode, filename):
     full_filename = get_config_full_filename(mode, filename)
     if mode == "preproc":
-        dir_path = constants.DATA_CONFIG_PATH_PREPROC
+        dir_path = DATA_CONFIG_PATH_PREPROC
     elif mode == "aug" :
-        dir_path = constants.DATA_CONFIG_PATH_AUG
+        dir_path = DATA_CONFIG_PATH_AUG
     elif mode == "train" :
         return None
     else:
@@ -122,3 +126,51 @@ PARAMETERS
 """
 def get_tasks_filename(ex,N,k, mode):
     return f'ex{ex}_{N}way_{k}shot_{mode}.csv'
+
+def get_results_dir_fullpath(ex : str, N:int, k:int):
+    return os.path.join(RESULTS_DIRECTORIES_DICT[ex],f'{N}_way_{k}_shot')
+
+"""
+    DESCRIPTION
+    Determines the name of the model based on the number of existing models of the same type.
+    i.e. it could be a protoNet with different backbone each time. It creates a file with the correct enumeration
+    based on the number of existing models of that type.
+
+    For example if there are already models 'model_protoNet_1.h5' and 'model_protoNet_2.h5' the file will be named
+    'model_protoNet_3.h5' etc. If there are none the number will be set to '1'
+
+    To provide mode info for the model and the training process in general a .txt file wll be provided
+"""
+def get_checkpoint_foldername(dir_path, model_name):
+    name = f"model_{model_name}_1"
+    while name in os.listdir(dir_path):
+        num = int((name.split('.')[0]).split('_')[-1])
+        name = f"model_{model_name}_{num + 1}"
+    return name
+
+
+"""
+PARAMETERS
+    criterion: 'latest', 'best_loss' or 'best_acc'
+"""
+def get_model_checkpoint_fullname(model_name, criterion):
+    if criterion == 'latest':
+        return model_name + '.h5'
+    elif criterion == 'best_loss':
+        return model_name + '_best_loss' + '.h5'
+    elif criterion == 'best_acc':
+        return model_name + '_best_acc' + '.h5'
+
+
+"""
+DESCRIPTION
+    Takes as input a line in the form "7    	0.3781         	1.4724         	0.3410         	1.6121"
+    and returns 7
+"""
+def get_line_starting_number(line):
+    i=0
+    while line[i].isdigit():
+        i+=1
+
+    return int(line[:i])
+

@@ -1,4 +1,5 @@
 import time
+
 import numpy as np
 from keras import utils
 import tensorflow
@@ -7,7 +8,6 @@ import random
 import os
 import csv
 import pandas as pd
-
 from constants import *
 from helper_functions import *
 from plot_functions import *
@@ -15,11 +15,43 @@ from data_augmentation import *
 from preprocessing import *
 
 
+sgr_domains = {
+    "db2" : {
+        "ex1" : {
+            "s_domain" : {'train' : list(range(1,41)), 'test' : list(range(1,41))},
+            "g_domain" : {'train' : list(range(1,50)), 'test' : list(range(1,50))},
+            "r_domain" : {'train' : [1,3,4,6], 'test' : [2,5]}
+        },
+        "ex2" : {
+            "s_domain" : {'train' : list(range(1,28)), 'val' : list(range(28,33)),'test' : list(range(33,41))},
+            "g_domain" : {'train' : list(range(1,50)), 'val' : list(range(1,50)), 'test' : list(range(1,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
+        },
+        "ex3" : {
+            "s_domain" : {'train' : list(range(1,41)), 'val' : list(range(1,41)), 'test' : list(range(1,41))},
+            "g_domain" : {'train' : list(range(1,35)), 'val' : list(range(35,41)),'test' : list(range(41,50))},
+            "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
+        }
+    },
+
+    "db5" : {
+
+    },
+
+    "db1" : {
+
+    }
+}
+
 class FileInfoProvider:
-    def __init__(self, db, rms, N, k, ex, mode):
+    def __init__(self, db, rms, N, k, ex, mode,get_subsampled_data:bool=False):
         if db == 2:
-            self.data_directory = os.path.join(PROCESSED_DATA_PATH_DB2, get_rmsRect_dirname(db, rms))
-            self.data_filepath = os.path.join(self.data_directory, get_rmsRect_dirname(db, rms)+'.npz')
+            self.data_directory = RMS_DATA_PATH_DB2
+            if get_subsampled_data == True:
+                self.data_filepath = os.path.join(self.data_directory, get_rms_sub_filename(db, rms,100))
+            else:
+                self.data_filepath = os.path.join(self.data_directory, get_rms_rect_filename(db, rms))
+
         elif db == 1:
             self.data_directory = PROCESSED_DATA_PATH_DB1
             self.data_filepath = os.path.join(self.data_directory,'db1_raw.npz')
@@ -31,6 +63,10 @@ class FileInfoProvider:
         self.k = k
         self.ex = ex
         self.mode = mode
+
+    def setMode(self,mode):
+        self.mode = mode
+        return
 
     def getDataDirectoryPath(self):
         return self.data_directory
@@ -57,14 +93,15 @@ class TaskGenerator(utils.Sequence):
         self.way = way
         self.shot = shot
         self.mode = mode
-        self.data_intake = data_intake
+        self.data_intake = ''
+        self.task_generator = None
 
         self.db = database
 
         self.preproc_config = preprocessing_config
         self.window_size = self.getWindowSize()
         self.rms_win_size = rms_win_size
-        self.fileInfoProvider = FileInfoProvider(self.db, self.rms_win_size, N = self.way, k = self.shot, ex = self.experiment, mode=self.mode)
+        self.fileInfoProvider = FileInfoProvider(self.db, self.rms_win_size, N = self.way, k = self.shot, ex = self.experiment, mode=self.mode, get_subsampled_data=True)
 
         self.aug_enabled = aug_enabled
         if self.aug_enabled == True:
@@ -87,36 +124,15 @@ class TaskGenerator(utils.Sequence):
         self.print_labels = print_labels
         self.print_label_freq = print_labels_frequency
 
-        if self.experiment == '1':
-            self.s_domain = list(range(1,41))
-            self.g_domain = list(range(1,50))
-            self.r_domain = {'train':[1,3,4,6], 'test':[2,5]}[self.mode]
-            self.s_r_pairs = self.get_s_r_pairs()
+        self.s_domain = []
+        self.g_domain = []
+        self.r_domain = []
+        self.s_r_pairs = []
 
-        elif self.experiment in ['2a', '2b']:
-            self.s_domain = {'train': list(range(1,28)), 'val': list(range(28,33)),'test': list(range(33,41))}[self.mode]
-            self.g_domain = list(range(1,50))
-            self.r_domain = list(range(1,7))
+        self.get_sgr_domains()
 
-            if experiment == '2b':
-                self.s_r_pairs = self.get_s_r_pairs()
 
-        elif self.experiment == '3':
-            self.s_domain = list(range(1, 41))
-            self.g_domain = {'train': list(range(1,35)), 'val': list(range(35,41)), 'test': list(range(41,50))}[self.mode]
-            self.r_domain = list(range(1, 7))
-            self.s_r_pairs = self.get_s_r_pairs()
-
-        if self.data_intake == "csv":
-            # t1 = time.time()
-            self.load_tasks_from_file()
-            # print(f"total time for loading tasks : {time.time()-t1:.2f}")
-            self.task_generator = self.get_premade_keys
-        else:
-            if self.experiment == '2a':
-                self.task_generator = self.generate_task_keys_2a
-            elif self.experiment in ['1','2b','3']:
-                self.task_generator = self.generate_task_keys
+        self.set_data_intake_type(data_intake)
 
         return
 
@@ -151,6 +167,7 @@ class TaskGenerator(utils.Sequence):
 
         self.query_keys = q_keys.to_numpy()
         self.query_seg_start = q_seg.to_numpy()
+
         self.query_gest_indices = q_label.to_numpy()
 
         print("\n...tasks have been loaded.")
@@ -168,7 +185,7 @@ class TaskGenerator(utils.Sequence):
             if self.aug_enabled:
                 keyAppDict[key] = [0,0]
             else:
-                keyAppDict[key] = 0
+                keyAppDict[key] = [0]
         return keyAppDict
 
 
@@ -188,8 +205,23 @@ class TaskGenerator(utils.Sequence):
     def getKeys_in_order(self,*entries:tuple) -> list:
         return [getKey(s,g,r) for s,g,r in entries]
 
-    def get_s_r_pairs(self) -> list:
-        return [(s,r) for s in self.s_domain for r in self.r_domain]
+    def set_s_r_pairs(self) -> list:
+        self.s_r_pairs = [(s,r) for s in self.s_domain for r in self.r_domain]
+
+    """
+    DESCRIPTION
+        Depending on the experiment and the database used there are different values for the s,g,r fields
+        These are all taken from the dictionary containing the configurations 
+    """
+    def get_sgr_domains(self):
+        exp_key = f'ex{self.experiment[0]}'
+        db_key = f'db{self.db}'
+        self.s_domain = sgr_domains[db_key][exp_key]["s_domain"][self.mode]
+        self.g_domain = sgr_domains[db_key][exp_key]["g_domain"][self.mode]
+        self.r_domain = sgr_domains[db_key][exp_key]["r_domain"][self.mode]
+        self.set_s_r_pairs()
+
+        return
 
     def plotKeyAppHist(self):
         plotDictBar(self.keyAppDict)
@@ -200,13 +232,64 @@ class TaskGenerator(utils.Sequence):
         indices = np.arange(segment_start, segment_start+self.window_size)
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
-            self.keyAppDict[key] += 1
+            self.keyAppDict[key][0] += 1
         else:
+            #TODO - Might be more depending on the number of unique augmentation techniques used
             ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
             x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
             self.keyAppDict[key][ind] += 1
 
         return x
+
+    def set_batch_size(self, batch_size:int):
+        self.batch_size = batch_size
+        return
+
+    """
+        PARAMETERS
+        data
+    """
+    def set_data_intake_type(self,data_intake):
+        if self.data_intake == data_intake or data_intake not in ['csv','generate']:
+            return
+        self.data_intake = data_intake
+
+        if self.data_intake == "csv":
+            self.load_tasks_from_file()
+            self.task_generator = self.get_premade_keys
+        elif self.data_intake == "generate":
+            if self.experiment == '2a':
+                self.task_generator = self.generate_task_keys_2a
+            elif self.experiment in ['1','2b','3']:
+                self.task_generator = self.generate_task_keys
+
+        return
+
+    def getMode(self):
+        return self.mode
+    def setMode(self,mode):
+        if self.mode == mode:
+            return
+        self.mode = mode
+        self.fileInfoProvider.setMode(self.mode)
+        # self.s_r_pairs gets taken care of by self.get_sgr_domains
+        self.get_sgr_domains()
+
+        # In case tasks are premade and loaded from a csv file, they need to be reloaded since each csv file
+        # depends on the mode and thus a different file contains the tak keys for that different mode
+        if self.data_intake == "csv":
+            # t1 = time.time()
+            self.load_tasks_from_file()
+
+        return
+
+    def set_iterations_per_epoch(self,iterations):
+        self.batches_per_epoch = iterations
+        return
+
+    def set_aug_enabled(self,aug_enabled):
+        self.aug_enabled = aug_enabled
+
 
     def generate_task_keys(self, index):
         support_set_keys = []
@@ -219,7 +302,9 @@ class TaskGenerator(utils.Sequence):
             support_set = []
             start_indices = []
 
+            # Select N random gestures
             task_gestures = random.sample(self.g_domain, self.way)
+            # Select 1 out of the N to be the query one and keep it index (which of the 5 it is)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
             shot_list = [self.shot]*self.way
             shot_list[query_gesture_index] += 1
@@ -235,20 +320,23 @@ class TaskGenerator(utils.Sequence):
             query_seg_start_index = start_indices[query_gesture_index].pop()
 
             support_set_keys.append(support_set)
-            query_keys.append(query_key)
-            query_gest_indices.append(query_gesture_index)
             support_segments_starting_indices.append(start_indices)
+            query_keys.append(query_key)
             query_segments_starting_indices.append(query_seg_start_index)
+            query_gest_indices.append(query_gesture_index)
 
-        return support_set_keys, query_keys, query_gest_indices, support_segments_starting_indices, query_segments_starting_indices
+        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
     def generate_task_keys_2a(self, index):
         support_set_keys = []
         query_keys = []
         query_gest_indices = []
+        support_segments_starting_indices = []
+        query_segments_starting_indices = []
 
         for i in range(self.batch_size):
             support_set = []
+            start_indices = []
 
             task_gestures = random.sample(self.g_domain, self.way)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
@@ -256,18 +344,25 @@ class TaskGenerator(utils.Sequence):
             shot_list = [self.shot] * self.way
             shot_list[query_gesture_index] += 1
 
+            # Since each of the N gestures is taken from the same subject, the only variant in the (s,g,r)
+            # combination of each key is the 'r'
             reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
             for i,g in enumerate(task_gestures):
                 sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
-                support_set.append(self.getKeys(*sgr_list))
+                category_keys = self.getKeys(*sgr_list)
+                support_set.append(category_keys)
+                start_indices.append([random.choice(self.segments[key]) for key in category_keys])
 
             query_key = support_set[query_gesture_index].pop()
+            query_seg_start_index = start_indices[query_gesture_index].pop()
 
             support_set_keys.append(support_set)
+            support_segments_starting_indices.append(start_indices)
             query_keys.append(query_key)
+            query_segments_starting_indices.append(query_seg_start_index)
             query_gest_indices.append(query_gesture_index)
 
-        return support_set_keys, query_keys, query_gest_indices
+        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
     def get_premade_keys(self,index):
         ind = np.arange(index*self.batch_size, (index+1)*self.batch_size)
@@ -277,9 +372,9 @@ class TaskGenerator(utils.Sequence):
         query_seg = self.query_seg_start[ind]
         gest_ind = self.query_gest_indices[ind]
 
-        return support_keys, query_keys, gest_ind, support_seg, query_seg
+        return support_keys, support_seg, query_keys, query_seg, gest_ind
 
-    def get_task_data_based_on_keys(self, support_keys, query_keys, query_gesture_indices, support_seg_starting_indices, query_seg_starting_indices):
+    def get_task_data_based_on_keys(self, support_keys, support_seg_starting_indices, query_keys, query_seg_starting_indices, query_gesture_indices):
         support_set_batch = []
         query_batch = []
         labels_batch = []
@@ -305,7 +400,7 @@ class TaskGenerator(utils.Sequence):
 
 
 
-def create_csv_lines(support_keys,query_keys,query_gest_ind,support_seg_start,query_seg_start):
+def create_csv_lines(support_keys,support_seg_start,query_keys,query_seg_start,query_gest_ind):
     batch_size,way,shot = np.array(support_keys).shape
     task_lines = np.empty([batch_size,2*(way*shot+1)+1],dtype='U9')
     s_keys_np = np.reshape(np.array(support_keys),[batch_size,way*shot])
@@ -326,30 +421,44 @@ PARAMETERS
     - mode : 'train', 'test' or 'val'
 """
 def save_tasks(task_lines,db,experiment,way,shot,mode):
-    with open(os.path.join(f'tasks/DB{db}',get_tasks_filename(ex=experiment,N=way,k=shot,mode=mode)),'w', newline='') as file:
+    if db == 2:
+        dirpath = TASKS_FILE_PATH_DB2
+    elif db == 1:
+        dirpath = TASKS_FILE_PATH_DB1
+    elif db == 5:
+        dirpath = TASKS_FILE_PATH_DB5
+
+    full_path = os.path.join(dirpath, get_tasks_filename(ex=experiment, N=way, k=shot, mode=mode))
+    # full_path = os.path.join(dirpath, 'ex1_test.csv')
+
+    with open(full_path, 'w', newline='') as file:
         writer = csv.writer(file)
         for task in task_lines:
             writer.writerow(task)
+
+    print(f"Saved at: '{full_path}'")
 
 if __name__ == '__main__':
     way = 5
     shot = 5
     ex = '1'
     db = 2
-    num_batches = 10000
+    num_batches = 1
     batch_size = 64
     mode = 'train'
     preproc_config = get_config_from_json_file('preproc', 'db2_no_lpf')
+    aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
     Gen = TaskGenerator(experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
 
     t1 = time.time()
-    task_lines = np.empty([1 + num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
-    task_lines[0] = [el for i in range(way) for j in range(shot) for el in (f"class{i+1}_ex{j+1}_key", f"class{i+1}_ex{j+1}_seg")] + ['query_key','query_seg','label']
+    task_lines = np.empty([1+num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
+    headers = [el for i in range(way) for j in range(shot) for el in (f"c{i+1}_e{j+1}_key", f"c{i+1}_e{j+1}_seg")] + ['query_key','query_seg','label']
+    task_lines[0] = headers
 
     print("Preparing tasks...")
     for i in range(num_batches):
-        keys = Gen.generate_task_keys(i)
-        task_lines[1 + i*batch_size : 1 + (i+1)*batch_size] = create_csv_lines(*keys)
+        keys = Gen.task_generator(i)
+        task_lines[1+i*batch_size :1+(i+1)*batch_size] = create_csv_lines(*keys)
         if i%100 == 0:
             print(f"Batch {i}/{num_batches} : {time.time()-t1:.2f}")
 
@@ -359,3 +468,14 @@ if __name__ == '__main__':
     print(f"total time for {num_batches*batch_size} ({way}way-{shot}shot) tasks: {time.time()-t1:.2f}")
     save_tasks(task_lines,db=db, experiment=ex, way=way, shot=shot, mode=mode)
     print()
+
+    # test_loader = TaskGenerator(experiment=ex, way=5, shot=5, mode='test', data_intake='generate', database=db,
+    #               preprocessing_config=preproc_config, aug_enabled=False, aug_config=aug_config, rms_win_size=150,
+    #               batch_size=batch_size, batches=10, print_labels=False, print_labels_frequency=5)
+    #
+    # for i in range(10):
+    #     [x,y],label = test_loader[i]
+    #
+    # test_loader.plotKeyAppHist()
+
+

@@ -6,8 +6,8 @@ from helper_functions import get_config_full_filename
 
 # PREPROCESSING
 preprocess_config = {
-    "SUBSAMPLE" :   {"enable" : True,
-                     "params" : {"init_freq" : 2000, "new_freq" : 100}},
+    "SUBSAMPLE" :   {"enable" : False,
+                     "params" : None},#{"init_freq" : 2000, "new_freq" : 100}},
 
     "DISCARD"   :   {"enable" : True ,
                      "params" : {"seconds_to_keep" : 3.5, "fs" : 100}},
@@ -73,4 +73,4 @@ def save_config(mode:str, filename:str):
 # mode : either "preproc" or "aug"
 if __name__ == "__main__":
     mode = "preproc"
-    save_config(mode, "db2_no_lpf")
+    save_config(mode, "db2_lpf_minmax_discard_3.5")
