@@ -3,7 +3,7 @@
         "SUBSAMPLE": false,
         "DISCARD": true,
         "LOWPASS": false,
-        "MIN-MAX": false,
+        "MIN-MAX": true,
         "M-LAW": false,
         "SEGMENT": true
     },
