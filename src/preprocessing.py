@@ -89,6 +89,23 @@ def minmax_norm(x):
     min_x = np.min(x)
     return (x-min_x) / (max_x-min_x)
 
+"""
+DESCRIPTION
+    Performs μ-Law on a given emg signal x for a given value of μ
+PARAMETERS
+    - χ: The emg signal
+    - μ: The value used n the formula
+    - scaling_type: "all" for scaling all channels with the absolute maximum of the while signal
+                    "each" for scaling with the maximum of each channel
+"""
+def muLaw_transform(x, mu = 2048, scaling_type = 'all'):
+
+    if scaling_type == "each":
+        x = x/np.max(np.abs(x),axis=0)
+    else:
+        x= x/np.max(np.abs(x))
+
+    return np.sign(x)*(np.log(1+mu*np.abs(x))/np.log(1+mu))
 
 # Keeps only a certain amount of samples from each emg, the middle seconds_to_keep ones
 def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
@@ -132,6 +149,8 @@ def apply_preprocessing(data_path, config_dict:dict, db:int):
     t1 = time.time()
     for key, emg in data.items():
         # for op in op_no_seg:
+        if key == "s12g34r04":
+            print()
         for func, params in operations_params:
             emg = func(emg, **params)
 
@@ -141,6 +160,7 @@ def apply_preprocessing(data_path, config_dict:dict, db:int):
             print(f"{key[:3]}/{len(data.items()) // total_samples_per_gesture} : {time.time() - t1:.2f}s")
             t1 = time.time()
 
+
     if config_operations["SEGMENT"] == True:
         for key, emg in data_proc.items():
             data_seg[key] = get_segmentation_indices(emg, **config_params["SEGMENT"])
@@ -148,21 +168,16 @@ def apply_preprocessing(data_path, config_dict:dict, db:int):
 
     return data_proc, data_seg
 
-
-
-
-
 preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "M-LAW", "MIN-MAX", "SEGMENT"]
 
 preprocess_funcs = {
     "SUBSAMPLE" :   subsample,
     "DISCARD"   :   discard_early_and_late_gest_stages,
     "LOWPASS"   :   applyLPFilter,
-    "M-LAW"     :   None,
+    "M-LAW"     :   muLaw_transform,
     "MIN-MAX"   :   minmax_norm,
     "SEGMENT"   :   get_segmentation_indices
 }
-
 
 if __name__ == "__main__":
     new_freq = 100
