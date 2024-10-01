@@ -1,10 +1,10 @@
 {
     "ops": {
         "SUBSAMPLE": false,
-        "DISCARD": true,
+        "DISCARD": false,
         "LOWPASS": true,
         "MIN-MAX": true,
-        "M-LAW": false,
+        "M-LAW": true,
         "SEGMENT": true
     },
     "params": {
@@ -19,7 +19,10 @@
             "N": 1
         },
         "MIN-MAX": {},
-        "M-LAW": {},
+        "M-LAW": {
+            "mu": 2048,
+            "scaling_type": "all"
+        },
         "SEGMENT": {
             "window_size_ms": 150,
             "window_step_ms": 60,

@@ -1,7 +1,7 @@
 {
     "ops": {
         "SUBSAMPLE": false,
-        "DISCARD": true,
+        "DISCARD": false,
         "LOWPASS": true,
         "MIN-MAX": true,
         "M-LAW": false,
