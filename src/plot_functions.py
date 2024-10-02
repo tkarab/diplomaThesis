@@ -10,6 +10,7 @@ def plot_sEMG(emg, fs, channels=[1,2,3,4,5,6], title='', figure_name = 'Figure',
   time = time/fs
   N = len(channels)
 
+  # max = np.max(np.abs(emg[:,channels]))
   for i in range(N):
     emg_channel = emg[:,channels[i]-1]
     max = np.max(np.abs(emg_channel))
@@ -17,7 +18,7 @@ def plot_sEMG(emg, fs, channels=[1,2,3,4,5,6], title='', figure_name = 'Figure',
     offset = 2.5*(N-i-1)
     plt.plot(time,emg_norm+offset, label='channel {}'.format(i+1))
 
-  lgd = plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+  lgd = plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
   plt.xlabel('time')
   plt.ylabel('channels')
   plt.title(title)

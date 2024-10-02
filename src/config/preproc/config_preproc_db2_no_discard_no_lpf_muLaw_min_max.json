@@ -21,7 +21,7 @@
         "MIN-MAX": {},
         "M-LAW": {
             "mu": 2048,
-            "scaling_type": "all"
+            "scaling_type": "each"
         },
         "SEGMENT": {
             "window_size_ms": 150,

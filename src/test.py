@@ -1,42 +1,33 @@
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import os
 import sys
 import random
-import tensorflow as tf
-import fsl_functions
-import custom_models
+# import fsl_functions
+# import custom_models
 import constants
 import time
-import helper_functions
+from helper_functions import *
 from plot_functions import *
+from preprocessing import *
+from matplotlib import pyplot as plt
 
 
 data_path = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\processed\db2\db2_processed.npz'
+mu1 = 2048
+mu2 = 256
+mu3 = 32
 
-# data = np.load(data_path)
-# total_keys = data.files
-N = 4
+x = np.linspace(-1,1,1000)
+y1 = muLaw_transform(x,mu1)
+y2 = muLaw_transform(x,mu2)
+y3 = muLaw_transform(x,mu3)
+plt.plot(x,y1, label=f"μ={mu1}")
+plt.plot(x,y2, label=f"μ={mu2}")
+plt.plot(x,y3, label=f"μ={mu3}")
 
-# keys = random.sample(total_keys,N)
+plt.legend()
 
-# print("Keys chosen:",keys)
-# signals = {key :data[key] for key in keys}
-# channels = signals[random.choice(keys)].shape[1]
-# max_length = np.max([signal.shape[0] for signal in signals.values()])
-
-cnn1 = custom_models.AtzoriNetDB2_embedding_only()
-cnn2 = custom_models.AtzoriNetDB2_embedding_only_extra_layers_added(extra_layers=3)
-print(cnn1.summary())
-print(cnn2.summary())
 print()
-
-
-
-
-
-
-
-
 
 

@@ -7,6 +7,7 @@ import scipy
 import plot_functions as pl
 import data_augmentation as aug
 from helper_functions import *
+from plot_functions import *
 from constants import *
 
 """
@@ -98,7 +99,7 @@ PARAMETERS
     - scaling_type: "all" for scaling all channels with the absolute maximum of the while signal
                     "each" for scaling with the maximum of each channel
 """
-def muLaw_transform(x, mu = 2048, scaling_type = 'all'):
+def muLaw_transform(x, mu = 2048, scaling_type = "all"):
 
     if scaling_type == "each":
         x = x/np.max(np.abs(x),axis=0)

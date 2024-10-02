@@ -122,7 +122,7 @@ validation_steps = 1000
 training_steps = 10
 starting_epoch = 0
 batch_size = 32
-epochs = 30
+epochs = 0
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
@@ -204,7 +204,7 @@ else:
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
 
 
-preproc_config = get_config_from_json_file('preproc', "db2_lpf_minmax_discard_3.5")
+preproc_config = get_config_from_json_file('preproc', "db2_no_discard_lpf_muLaw_min_max")
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
