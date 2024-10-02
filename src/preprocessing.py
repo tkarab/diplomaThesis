@@ -2,12 +2,12 @@ import json
 
 import numpy as np
 import time
-import constants
 import os
-import helper_functions
 import scipy
 import plot_functions as pl
 import data_augmentation as aug
+from helper_functions import *
+from constants import *
 
 """
     For segmenting sEMG signal using sliding window of given shape and size
@@ -99,35 +99,53 @@ def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
     return x[max(L // 2 - W, 0):min(L // 2 + W, L)]
 
 
-def apply_preprocessing(data_path, config_dict:dict):
+def apply_preprocessing(data_path, config_dict:dict, db:int):
     print("Performing preprocessing...\n")
+
+    if db == 2:
+        gestures = 49
+        reps = 6
+    elif db == 5:
+        gestures = 52
+        reps = 6
+    elif db == 1:
+        gestures = 52
+        reps = 10
+    total_samples_per_gesture = gestures * reps
+    final_sample_subfix = f'g{gestures:02d}r{reps:02d}'
+
     data = np.load(data_path)
     data_proc = {key:None for key in data}
     data_seg = {key:None for key in data}
 
-    config_operations = config_dict['ops']
-    config_params = config_dict['params']
+    config_operations = config_dict['ops'].copy()
+    config_params = config_dict['params'].copy()
     op_no_seg = [op for op in preprocess_operations if not op == "SEGMENT"]
 
     if config_operations["LOWPASS"] == True :
         b, a = get_filter_coeffs(**config_params["LOWPASS"])
         config_params["LOWPASS"] = {"b" : b, "a" : a}
 
+    operations_params = [(preprocess_funcs[op], config_params[op]) for op in preprocess_operations if
+                         config_operations[op] == True and op != "SEGMENT"]
+
     t1 = time.time()
-    for key,emg in data.items():
-        for op in op_no_seg:
-            if config_operations[op] == True:
-                emg = preprocess_funcs[op](emg, **config_params[op])
+    for key, emg in data.items():
+        # for op in op_no_seg:
+        for func, params in operations_params:
+            emg = func(emg, **params)
 
-        data_proc[key] = np.expand_dims(emg,-1)
+        data_proc[key] = np.expand_dims(emg, -1)
 
-        if config_operations["SEGMENT"] == True:
-            data_seg[key] = get_segmentation_indices(emg,**config_params["SEGMENT"])
-
-        if key[3:] == "g49r06" :
-            print(f"{key[:3]}/{len(data.items())//294} : {time.time()-t1:.2f}s")
+        if key[3:] == final_sample_subfix:
+            print(f"{key[:3]}/{len(data.items()) // total_samples_per_gesture} : {time.time() - t1:.2f}s")
             t1 = time.time()
+
+    if config_operations["SEGMENT"] == True:
+        for key, emg in data_proc.items():
+            data_seg[key] = get_segmentation_indices(emg, **config_params["SEGMENT"])
     print("\n...preprocessing has finished\n")
+
     return data_proc, data_seg
 
 
@@ -137,8 +155,8 @@ def apply_preprocessing(data_path, config_dict:dict):
 preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "M-LAW", "MIN-MAX", "SEGMENT"]
 
 preprocess_funcs = {
-    "DISCARD"   :   discard_early_and_late_gest_stages,
     "SUBSAMPLE" :   subsample,
+    "DISCARD"   :   discard_early_and_late_gest_stages,
     "LOWPASS"   :   applyLPFilter,
     "M-LAW"     :   None,
     "MIN-MAX"   :   minmax_norm,
@@ -147,10 +165,20 @@ preprocess_funcs = {
 
 
 if __name__ == "__main__":
-    config = helper_functions.get_config_from_json_file(mode="preproc", filename='db2_lpf')
-    data_dir_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, r'db2_rms_200\db2_rms_200.npz')
-    data_proc, segments = apply_preprocessing(data_dir_path, config)
+    new_freq = 100
+    for rms in [50,100,150,250]:
+        unsampled_data_path = os.path.join(RMS_DATA_PATH_DB2,get_rms_rect_filename(2,rms))
+        data = np.load(unsampled_data_path)
+        subsampled_data = {}
 
-    aug_config = helper_functions.get_config_from_json_file('aug','db2_awgn')
-    aug.apply_augmentation(data_proc, aug_config)
+        t1 = time.time()
+        for key,emg in data.items():
+            emg_sub = subsample(emg,2000,new_freq=new_freq)
+            subsampled_data[key] = emg_sub
+        total_time = time.time() - t1
+        print(f"total time for subsampling {len(data.items())} recordings: {total_time:.2f}s")
 
+        new_path = os.path.join(RMS_DATA_PATH_DB2,get_rms_sub_filename(2,rms,new_freq))
+        np.savez(new_path,**subsampled_data)
+
+        print(f"rms {rms} done")

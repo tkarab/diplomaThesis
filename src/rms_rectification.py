@@ -1,9 +1,10 @@
-import constants
 import numpy as np
 import time
 import os
 import sys
-import helper_functions as help
+from helper_functions import *
+from constants import *
+
 
 def calculate_total_size(data_rms:dict):
     total_size = 0
@@ -26,9 +27,6 @@ def save_rectified_gestures(data_rms: dict, full_path: str, filename:str):
     # Keeps only the non None values
     data_rms = {key: data_rms[key] for key in data_rms if data_rms[key] is not None}
 
-    if not os.path.exists(full_path):
-        os.mkdir(full_path)
-
     full_file_path = os.path.join(full_path,filename)
     np.savez(full_file_path, **data_rms)
     print(f"Rectified data saved at: '{full_file_path}'")
@@ -49,7 +47,7 @@ PARAMETERS
     fs: sampling rate (2000 for DB2)
     win_size_ms: window size in milliseconds
 """
-def rmsRect2(x:np.ndarray, fs = 2000, win_size_ms=200):
+def rmsRect(x:np.ndarray, fs = 2000, win_size_ms=200):
     emg_rect = np.zeros(x.shape)
     W = int(win_size_ms*fs/1000)
 
@@ -84,19 +82,19 @@ PARAMETERS
                     ie 'C:\\Users\\ΤΑΣΟΣ\\Desktop\\Σχολή\\Διπλωματική\\Δεδομένα\\processed\\db2'
 """
 def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
-    rms_dir_name = help.get_rmsRect_dirname(db, win_size_ms)  # ie 'db2_rms_100'
-    full_rms_dir_path = os.path.join(db_dir_path, rms_dir_name)
-    rms_filename = rms_dir_name + '.npz'
+    rms_filename = get_rms_rect_filename(db, win_size_ms)  # ie 'db2_rms_100.npz'
+    full_rms_file_path = os.path.join(db_dir_path, rms_filename)
+    # rms_filename = rms_dir_name + '.npz'
 
-    separated_data_filename = os.path.join(constants.SEPARATED_DATA_PATH, f'db{db}.npz')
+    separated_data_filename = os.path.join(SEPARATED_DATA_PATH, f'db{db}.npz')
     data_sep_raw = np.load(separated_data_filename)
 
     already_rectified = 0
 
     # Case where the folder exists (and thus the rectification has either been completed or at least partially done
-    if rms_dir_name in os.listdir(db_dir_path):
+    if rms_filename in os.listdir(db_dir_path):
         # Checking whether all gestures have been rectified
-        data_rms = np.load(os.path.join(full_rms_dir_path, rms_filename))
+        data_rms = np.load(full_rms_file_path)
 
         # If all the keys exist in the file, then rms rectification with that specific window size has already been doneand there is no need to redo
         if (set(data_rms.files) == set(data_sep_raw.files)):
@@ -120,7 +118,7 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
     t1 = time.time()
     for i, key in enumerate(remaining_keys):
         emg = data_sep_raw[key]
-        emg_rms = rmsRect2(emg, win_size_ms=win_size_ms, fs=fs)
+        emg_rms = rmsRect(emg, win_size_ms=win_size_ms, fs=fs)
 
         data_rms[key] = np.copy(emg_rms)
         if (key[3:] == 'g49r06'):
@@ -129,7 +127,7 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
             t1 = time.time()
 
     print("total_time:", time.time() - t_start)
-    save_rectified_gestures(data_rms, full_path=full_rms_dir_path, filename=rms_filename)
+    save_rectified_gestures(data_rms, full_path=db_dir_path, filename=rms_filename)
 
     return
 
@@ -148,11 +146,11 @@ if __name__ == "__main__":
         win_size_ms = 50
 
     if db == 1:
-        path = constants.PROCESSED_DATA_PATH_DB1
+        path = PROCESSED_DATA_PATH_DB1
     elif db == 2:
-        path = constants.PROCESSED_DATA_PATH_DB2
+        path = RMS_DATA_PATH_DB2
     elif db == 5:
-        path = constants.PROCESSED_DATA_PATH_DB5
+        path = PROCESSED_DATA_PATH_DB5
     else:
         exit(0)
 

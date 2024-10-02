@@ -66,3 +66,48 @@ def plotSpectrum(x,fs,showInMultiplesOfPi=False, title='Φάσμα emg σήμα�
   plt.show()
 
   return
+
+"""
+DECRIPTION
+  For plotting the values of a dictionary using a bar
+  If keys have multiple values (same number of values for each key) they will be displayed using multiple colors (same for each category)
+
+PARAMETERS
+  data_dict : dictionary whose values are either lists (of same nuber of elements) or 1 value
+  i.e. data_dict = {
+        'a': [3, 4, 3],
+        'b': [5, 7, 3],
+        'c': [2, 2, 3]
+      }
+"""
+def plotDictBar(data_dict:dict):
+  keys = list(data_dict.keys())[:100]
+  values = np.array(list(data_dict.values()))[:100]
+
+  # Number of categories
+  num_categories = values.shape[1]
+
+  # Colors for each category
+  colors = plt.cm.viridis(np.linspace(0, 1, num_categories))
+
+  # Create a stacked bar chart
+  fig, ax = plt.subplots()
+
+  # Plot each category
+  for i in range(num_categories):
+    if i == 0:
+      ax.bar(keys, values[:, i], color=colors[i], label=f'non-augmented')
+    else:
+      ax.bar(keys, values[:, i], bottom=np.sum(values[:, :i], axis=1), color=colors[i], label=f'augmented')
+
+  plt.xlabel('Key')
+  plt.ylabel('Value')
+
+  # Add a legend
+  plt.legend()
+
+  # Show the plot
+  plt.show()
+
+  return
+

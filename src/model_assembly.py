@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-import fsl_functions
+from fsl_functions import *
 
 """
 This file includes functions for assembling different types of models
@@ -23,11 +23,11 @@ def assemble_protonet_timeDist(nn_backbone, input_shape:tuple):
     layer_query_set_input = layers.Input(input_shape, name="Query_Set_Input")
 
     layer_support_set_embeddings = layer_time_dist(layer_support_set_input)
-    layer_prototypes = layers.Lambda(fsl_functions.produce_prototype,name="Prototypes")(layer_support_set_embeddings)
+    layer_prototypes = layers.Lambda(produce_prototype,name="Prototypes")(layer_support_set_embeddings)
 
     layer_query_set_embedding = nn_backbone(layer_query_set_input)
 
-    layer_output_prediction = layers.Lambda(fsl_functions.softmax_classification, name="Prediction")([layer_prototypes, layer_query_set_embedding])
+    layer_output_prediction = layers.Lambda(softmax_classification, name="Prediction")([layer_prototypes, layer_query_set_embedding])
     
     model = keras.Model(inputs=[layer_support_set_input, layer_query_set_input], outputs=layer_output_prediction, name="Atzori_DB2_Protonet")
 
@@ -61,12 +61,46 @@ def assemble_protonet_reshape(nn_backbone, input_shape:tuple, way:int, shot:int)
 
     # Produce the prototypes of the support set
     # This should reduce the support set embeddings down to: (3,2,64,1) -> (3,64,1) by averaging the 2 embeddings of each of the 3 classes
-    layer_prototypes = layers.Lambda(fsl_functions.produce_prototype)(layer_support_set_embeddings)
+    layer_prototypes = layers.Lambda(produce_prototype)(layer_support_set_embeddings)
 
     # Make final prediction
-    layer_prediction = layers.Lambda(fsl_functions.softmax_classification)([layer_prototypes, layer_query_set_embedding])
+    layer_prediction = layers.Lambda(softmax_classification)([layer_prototypes, layer_query_set_embedding])
 
     # Assemble the final Model
     model = keras.Model(inputs = [layer_support_set_input, layer_query_set_input], outputs=layer_prediction)
+
+    return model
+
+def assemble_protonet_reshape_with_batch(nn_backbone, input_shape:tuple, way:int, shot:int):
+    input_shape_4d = (1,) + input_shape
+    input_shape_5d = (None,None,) + input_shape
+    layer_support_set_input = layers.Input(input_shape_5d, name="Support_Set_Input")
+    layer_query_set_input = layers.Input(input_shape_4d, name="Query_Set_Input")
+
+    nn_backbone_timeDist = layers.TimeDistributed(nn_backbone)
+
+    # Concatenate the support set and query image into a 1d set of the standard input shape.
+    # i.e. a (3,2) support set and 1 query image of size (15,12,1) will form a set of 2x3+1 = 7 images (15,12,1)
+    layer_support_query_concat = tf.concat([tf.reshape(layer_support_set_input,[-1,way*shot]+list(input_shape)), layer_query_set_input],axis=1)
+
+    # We Produce Embeddings for all input data (support and query) by passing them all together through the network in feed forward fashion
+    # Based on the previous example, given that a (15,12,1) image produces a (64,1) embedding, the whole
+    # reshaped (7,15,12,1) set should produce a (7,64,1) set of embeddings
+    layer_support_query_embeddings = nn_backbone_timeDist(layer_support_query_concat)
+
+    # Separate query and support embeddings
+    # Separate and reshape support set embeddings (6,64,1) -> (3,2,64,1)
+    layer_support_set_embeddings = tf.reshape(layer_support_query_embeddings[:,:way * shot], [-1,way, shot, layer_support_query_embeddings.shape[-1]])
+    layer_query_set_embedding = layer_support_query_embeddings[:,way*shot:]
+
+    # Produce the prototypes of the support set
+    # This should reduce the support set embeddings down to: (3,2,64,1) -> (3,64,1) by averaging the 2 embeddings of each of the 3 classes
+    layer_prototypes = layers.Lambda(produce_prototype)(layer_support_set_embeddings)
+
+    # Make final prediction
+    layer_prediction = layers.Lambda(softmax_classification)([layer_prototypes, layer_query_set_embedding])
+
+    # Assemble the final Model
+    model = keras.Model(inputs = [layer_support_set_input, layer_query_set_input], outputs=layer_prediction, name="ProtoNet")
 
     return model
