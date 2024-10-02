@@ -104,3 +104,29 @@ def assemble_protonet_reshape_with_batch(nn_backbone, input_shape:tuple, way:int
     model = keras.Model(inputs = [layer_support_set_input, layer_query_set_input], outputs=layer_prediction, name="ProtoNet")
 
     return model
+
+
+"""
+PARAMETERS
+    - f: the distance (or similarity) function
+"""
+def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
+    # input_shape_4d = (1,) + input_shape
+    x1 = keras.Input(shape=input_shape, name="input_X1")
+    x2 = keras.Input(shape=input_shape, name="input_X2")
+
+    embedding1 = cnn_backbone(x1)
+    embedding2 = cnn_backbone(x2)
+
+    # where f is a distance/similarity function
+    embedding_dist = f([embedding1,embedding2])
+
+    # Dense Layer producs a weighted sum of the difference/product (which is scalar)
+    # It is then passed through the sigmoid to produce a normalized similarity score between 0 and 1
+    # The weights should be adjusted during training to produce large positive values for images of the same class
+    # and large negative values for inputs of different class
+    similarity_score = layers.Dense(units=1,activation="sigmoid")(embedding_dist)
+
+    model = keras.Model(inputs=[x1,x2], outputs=similarity_score)
+
+    return model
