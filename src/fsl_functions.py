@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import numpy as np
 
 
 """
@@ -27,11 +27,29 @@ def euc_dist(args):
     return tf.sqrt(tf.reduce_sum(tf.square(prototypes-query_feat), axis=-1))
 
 def l2_dist(args):
-    prototypes, query_feat_reshaped = args
-    p_exp = tf.expand_dims(prototypes,axis=0)
-    q_exp = tf.expand_dims(query_feat_reshaped, axis=1)
-    diff = q_exp - p_exp
-    return tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
+    x1, x2 = args
+    return tf.square(x1-x2)
+
+def l1_dist(args):
+    x1, x2 = args
+    return tf.abs(x1-x2)
+
+def inner_product(args):
+    x1, x2 = args
+    return x1*x2
+
+def inner_product_norm(args):
+    x1, x2 = args
+    return (x1/tf.norm(x1))*(x2/tf.norm(x2))
+
+def inner_product_abs(args):
+    x1, x2 = args
+    return tf.abs(x1*x2)
+
+def inner_product_norm_abs(args):
+    x1, x2 = args
+    return tf.abs((x1/tf.norm(x1))*(x2/tf.norm(x2)))
+
 
 def softmax_classification(args, print_result=False):
     pred = tf.nn.softmax(-euc_dist(args),axis=-1)
