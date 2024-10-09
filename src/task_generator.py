@@ -84,16 +84,17 @@ DESCRIPTION
 PARAMETERS
     - database: 1,2 or 5
     - data_intake: either "csv" (to read from a csv) or "generate" (to generate tasks)
-    
+    - network_type: "protoNet" or "siamNet"
 
 """
 class TaskGenerator(utils.Sequence):
-    def __init__(self, experiment:str, way:int, shot:int, mode:str,data_intake:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200, print_labels = False, print_labels_frequency = 100):
+    def __init__(self, network_type:str, experiment:str, way:int, shot:int, mode:str,data_intake:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200, print_labels = False, print_labels_frequency = 100):
         self.experiment = experiment
         self.way = way
         self.shot = shot
         self.mode = mode
         self.data_intake = ''
+        self.network_type = network_type
         self.task_generator = None
 
         self.db = database
@@ -137,8 +138,11 @@ class TaskGenerator(utils.Sequence):
         return
 
     def __getitem__(self, index):
-        all_keys = self.task_generator(index)
-        support_batch, query_batch, labels_batch = self.get_task_data_based_on_keys(*all_keys)
+        if self.network_type == "protoNet":
+            all_keys = self.task_generator(index)
+            support_batch, query_batch, labels_batch = self.get_task_data_based_on_keys(*all_keys)
+        elif self.network_type == "siamNet":
+            support_batch, query_batch, labels_batch = self.task_generator(index)
 
         return [support_batch, query_batch], labels_batch
 
@@ -254,14 +258,19 @@ class TaskGenerator(utils.Sequence):
             return
         self.data_intake = data_intake
 
-        if self.data_intake == "csv":
-            self.load_tasks_from_file()
-            self.task_generator = self.get_premade_keys
-        elif self.data_intake == "generate":
-            if self.experiment == '2a':
-                self.task_generator = self.generate_task_keys_2a
-            elif self.experiment in ['1','2b','3']:
-                self.task_generator = self.generate_task_keys
+        if self.network_type == "protoNet":
+            if self.data_intake == "csv":
+                self.load_tasks_from_file()
+                self.task_generator = self.get_premade_keys
+            elif self.data_intake == "generate":
+                if self.experiment == '2a':
+                    self.task_generator = self.generate_task_keys_2a
+                elif self.experiment in ['1','2b','3']:
+                    self.task_generator = self.generate_task_keys
+        elif self.network_type == "siamNet":
+            self.task_generator = self.generate_siamNet_task
+        else:
+            exit("invalid network type in TaskGenerator __init__. Should be between 'siamNet' and 'protoNet'")
 
         return
 
@@ -364,6 +373,38 @@ class TaskGenerator(utils.Sequence):
 
         return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
+    """
+        Unlike generate_task_keys and generate_task_keys_2a it returns the data instead of their keys
+    """
+    def generate_siamNet_task(self, index):
+        x1_batch = []
+        x2_batch = []
+        labels_batch = []
+
+        for i in range(self.batch_size):
+            # 0 for pair of different classes and 1 for pair of same class
+            label = random.choice([0,1])
+            if label == 0:
+                gests = random.sample(self.g_domain, 2)
+                sgr_list = [random.choice(self.s_r_pairs) + (g,) for g in gests]
+
+            else:
+                gest = random.choice(self.g_domain)
+                s_r_pairs = random.sample(self.s_r_pairs,2)
+                sgr_list = [s_r_pair + (gest,) for s_r_pair in s_r_pairs]
+
+            key1,key2 = self.getKeys(*sgr_list)
+
+            x1_batch.append(self.get_segment_of_semg(key1, random.choice(self.segments[key1])))
+            x2_batch.append(self.get_segment_of_semg(key2, random.choice(self.segments[key2])))
+            labels_batch.append(label)
+
+        return np.array(x1_batch), np.array(x2_batch), np.array(labels_batch)
+
+
+
+
+
     def get_premade_keys(self,index):
         ind = np.arange(index*self.batch_size, (index+1)*self.batch_size)
         support_keys = self.support_keys[ind]
@@ -448,7 +489,7 @@ if __name__ == '__main__':
     mode = 'train'
     preproc_config = get_config_from_json_file('preproc', 'db2_no_lpf')
     aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
-    Gen = TaskGenerator(experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
+    Gen = TaskGenerator(network_type= "protoNet",experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
 
     t1 = time.time()
     task_lines = np.empty([1+num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')

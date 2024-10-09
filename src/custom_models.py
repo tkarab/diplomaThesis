@@ -215,7 +215,12 @@ def AtzoriNetDB2_embedding_only(input_shape = (15,12,1), add_dropout = False, dr
                         outputs = Y)
 
     return model
-def AtzoriNetDB2_embedding_only_extra_layers_added(input_shape = (15,12,1), extra_layers=1, add_dropout = False, dropout_pct = 0.15, krnl_init_name = "glorot_normal", add_regularizer:bool = False, l2 = 0.0002):
+"""
+PARAMETERS
+    - extra_layers: number of extra (3x3) layers added after the 32, (3x3) layer (the second convolutional layer)
+    - embedding_vector_size: The size of the feature vector that is extracted. By default it is 64 but it could be changed to 128 etc.
+"""
+def AtzoriNetDB2_embedding_only_extra_layers_added(input_shape = (15,12,1), extra_layers=1, embedding_vector_size=64, add_dropout = False, dropout_pct = 0.15, krnl_init_name = "glorot_normal", add_regularizer:bool = False, l2 = 0.0002):
     # Kernel Initializer
     if krnl_init_name == "glorot_normal":
         kernel_init = initializers.glorot_normal(seed=0)
@@ -277,18 +282,16 @@ def AtzoriNetDB2_embedding_only_extra_layers_added(input_shape = (15,12,1), extr
     # Layer 4: Padding (4,0) -> Conv2D [64 x (9,1)] -> ReLU
     # The Output is a vector of length 64 corresponding to the input image
     # Input:  (1,1,64)
-    # Output: (1,1,64)
+    # Output: (1,1,embedding_vector_size)
     X = layers.BatchNormalization()(X)
     X = layers.ZeroPadding2D(padding=(4, 0))(X)
-    X = layers.Conv2D(filters=64, kernel_size=(9, 1), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
+    X = layers.Conv2D(filters=embedding_vector_size, kernel_size=(9, 1), padding='valid', activation='relu', kernel_initializer=kernel_init, kernel_regularizer=kernel_reg)(X)
     if add_dropout == True:
         X = layers.Dropout(dropout_pct)(X)
 
     Y = layers.Flatten()(X)
-    name = f'AtzoriNetDB2_{extra_layers}ExtraLayer'
-    if extra_layers > 1:
-        name += 's'
-
+    name = f'AtzoriNetDB2_{extra_layers}ExtraLayers_vectorSize{embedding_vector_size}'
+    
     model = keras.Model(name = name,
                         inputs = X_inp,
                         outputs = Y)
