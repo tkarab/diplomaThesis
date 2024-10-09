@@ -162,7 +162,8 @@ criterion = 'best_acc'
 
 if not LOAD_EXISTING_MODEL:
     print("Creating new model...\n")
-    model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
+    # model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
+    model = assemble_siamNet(cnn_backbone=cnn_backbone, f=l1_dist, input_shape=inp_shape)
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
     model_foldername = get_checkpoint_foldername(resultsPath, model.name)
     print("Name:",model.name,'\n')

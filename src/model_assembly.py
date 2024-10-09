@@ -121,7 +121,7 @@ def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     # where f is a distance/similarity function
     embedding_dist = f([embedding1,embedding2])
 
-    # Dense Layer producs a weighted sum of the difference/product (which is scalar)
+    # Dense Layer produces a weighted sum of the difference/product (which is scalar)
     # It is then passed through the sigmoid to produce a normalized similarity score between 0 and 1
     # The weights should be adjusted during training to produce large positive values for images of the same class
     # and large negative values for inputs of different class
