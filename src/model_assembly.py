@@ -130,3 +130,34 @@ def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     model = keras.Model(inputs=[x1,x2], outputs=similarity_score)
 
     return model
+
+class SiameseNetwork(keras.Model):
+    def __init__(self,cnn_backbone:keras.Model,f,inp_shape:tuple, neurons_per_layer:list=[]):
+        super(SiameseNetwork, self).__init__()
+        self.feature_extractor = cnn_backbone
+        self.f = f
+        self.inp_shape = inp_shape
+        self.dense_layers = self.define_dense_layers(neurons_per_layer=neurons_per_layer)
+
+        return
+
+    def define_dense_layers(self,neurons_per_layer):
+        dense_layers = keras.Sequential()
+        # neurons_per_layer = [128,64] would mean 2 layers of 128 and 64 neurons etc before the single neuron output
+        for i,neurons_number in enumerate(neurons_per_layer):
+            dense_layers.add(layers.BatchNormalization())
+            dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
+        dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
+
+        return dense_layers
+    def call(self, input):
+        x1,x2 = input
+
+        embedding1 = self.feature_extractor(x1)
+        embedding2 = self.feature_extractor(x2)
+
+        embedding_dist = self.f([embedding1,embedding2])
+
+        similarity_score = self.dense_layers(embedding_dist)
+
+        return similarity_score
