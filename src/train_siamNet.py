@@ -55,7 +55,7 @@ resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpat
 
 print("Creating new model...\n")
 # model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-model = SiameseNetwork(cnn_backbone=cnn_backbone, f=l1_dist, inp_shape=inp_shape, neurons_per_layer=[])
+model = SiameseNetwork(cnn_backbone=cnn_backbone, f=l1_dist, inp_shape=inp_shape, dense_layers=get_dense_layers(neurons_per_layer=[]))
 model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
 model_foldername = get_checkpoint_foldername(resultsPath, model.name)
 print("Name:",model.name,'\n')

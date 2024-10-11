@@ -105,6 +105,24 @@ def assemble_protonet_reshape_with_batch(nn_backbone, input_shape:tuple, way:int
 
     return model
 
+"""
+DESCRIPTION
+    Returns a set of fully connected layers, each with the number of neurons defined by a list parameter.
+    Last layer is a single neuron layer providing a scalar output
+    Each layer has a relu activation function except for the last which has a sigmoid (for providing a normalized output between 0.0 and 1.0)
+    
+PARAMETERS
+    - neurons_per_layer = [128,64] would mean 2 layers of 128 and 64 neurons etc before the single neuron output 
+"""
+def get_dense_layers(neurons_per_layer=[]):
+    dense_layers = keras.Sequential()
+    for i,neurons_number in enumerate(neurons_per_layer):
+        dense_layers.add(layers.BatchNormalization())
+        dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
+    dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
+
+    return dense_layers
+
 
 """
 PARAMETERS
@@ -132,24 +150,16 @@ def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     return model
 
 class SiameseNetwork(keras.Model):
-    def __init__(self,cnn_backbone:keras.Model,f,inp_shape:tuple, neurons_per_layer:list=[]):
+    def __init__(self,cnn_backbone:keras.Model,f,inp_shape:tuple, dense_layers):
         super(SiameseNetwork, self).__init__()
         self.feature_extractor = cnn_backbone
         self.f = f
         self.inp_shape = inp_shape
-        self.dense_layers = self.define_dense_layers(neurons_per_layer=neurons_per_layer)
+
+        self.dense_layers = dense_layers
 
         return
 
-    def define_dense_layers(self,neurons_per_layer):
-        dense_layers = keras.Sequential()
-        # neurons_per_layer = [128,64] would mean 2 layers of 128 and 64 neurons etc before the single neuron output
-        for i,neurons_number in enumerate(neurons_per_layer):
-            dense_layers.add(layers.BatchNormalization())
-            dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
-        dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
-
-        return dense_layers
     def call(self, input):
         x1,x2 = input
 
