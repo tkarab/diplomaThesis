@@ -22,7 +22,7 @@ def keep_result_lines_until_best(filepath, epoch_to_keep_until):
         lines = f_read.readlines()
         lines_to_keep = lines[:2]
         for line in lines[2:]:
-            if get_line_starting_number(line) <= epoch_to_keep_until: #TODO - Fix so that the whole number of the line is read
+            if get_line_starting_number(line) <= epoch_to_keep_until:
                 lines_to_keep.append(line)
 
     with open(filepath, 'w') as f_write:
@@ -119,7 +119,7 @@ def testModel():
     return
 
 validation_steps = 1000
-training_steps = 10
+training_steps = 1000
 starting_epoch = 0
 batch_size = 32
 epochs = 0
@@ -128,8 +128,10 @@ channels = 12
 inp_shape = (win_size,channels,1)
 learning_rate = 0.001
 optimizer = keras.optimizers.Adam(learning_rate)
-loss_function = 'categorical_crossentropy'
-metrics = ['categorical_accuracy']
+# loss_function = 'categorical_crossentropy'
+loss_function = 'binary_crossentropy'
+# metrics = ['categorical_accuracy']
+metrics = ['binary_accuracy']
 
 #input shape tuple
 inp_shape_5d = (None,) + inp_shape
@@ -163,7 +165,7 @@ criterion = 'best_acc'
 if not LOAD_EXISTING_MODEL:
     print("Creating new model...\n")
     # model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-    model = assemble_siamNet(cnn_backbone=cnn_backbone, f=l1_dist, input_shape=inp_shape)
+    model = SiameseNetwork(cnn_backbone=cnn_backbone, f=l1_dist, inp_shape=inp_shape, neurons_per_layer=[128])
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
     model_foldername = get_checkpoint_foldername(resultsPath, model.name)
     print("Name:",model.name,'\n')
@@ -176,9 +178,9 @@ if not LOAD_EXISTING_MODEL:
     checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
 
     # Save initial state for all 3 models
-    model.save(checkpoint_latest_path)
-    model.save(checkpoint_best_loss_path)
-    model.save(checkpoint_best_acc_path)
+    # model.save_weights(checkpoint_latest_path)
+    # model.save_weights(checkpoint_best_loss_path)
+    # model.save_weights(checkpoint_best_acc_path)
 
     print(f"...model saved at '{resultsPath}'")
 
@@ -213,7 +215,7 @@ data_intake = 'generate'
 network_type = "siamNet"
 
 
-data_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps, print_labels=True, print_labels_frequency=5)
+data_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps)
 
 # Getting 1 output from train loader to test dimensions etc
 [x,y], label = data_loader[0]

@@ -88,7 +88,7 @@ PARAMETERS
 
 """
 class TaskGenerator(utils.Sequence):
-    def __init__(self, network_type:str, experiment:str, way:int, shot:int, mode:str,data_intake:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200, print_labels = False, print_labels_frequency = 100):
+    def __init__(self, network_type:str, experiment:str, way:int, shot:int, mode:str,data_intake:str, database:int ,  preprocessing_config:dict,aug_enabled:bool, aug_config:dict, batch_size:int=1, batches: int = 1000, rms_win_size:int=200):
         self.experiment = experiment
         self.way = way
         self.shot = shot
@@ -122,8 +122,6 @@ class TaskGenerator(utils.Sequence):
 
         self.batch_size = batch_size
         self.batches_per_epoch = batches
-        self.print_labels = print_labels
-        self.print_label_freq = print_labels_frequency
 
         self.s_domain = []
         self.g_domain = []
@@ -183,6 +181,8 @@ class TaskGenerator(utils.Sequence):
 
         return support_set
 
+    # Used for creating a dictionary keeping track of the number of times each key has been used
+    # Used only for checking whether the task sampling process is correct
     def get_key_app_dict(self):
         keyAppDict = {}
         for key in self.data.keys():
@@ -489,7 +489,7 @@ if __name__ == '__main__':
     mode = 'train'
     preproc_config = get_config_from_json_file('preproc', 'db2_no_lpf')
     aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
-    Gen = TaskGenerator(network_type= "protoNet",experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches, print_labels=False, print_labels_frequency=0)
+    Gen = TaskGenerator(network_type= "protoNet",experiment='1', way=way, shot=shot, mode=mode, data_intake='generate',database=db, preprocessing_config=preproc_config, aug_enabled=False, aug_config=None, rms_win_size=200, batch_size=batch_size, batches=num_batches)
 
     t1 = time.time()
     task_lines = np.empty([1+num_batches*batch_size,2*(way*shot+1)+1],dtype='U9')
