@@ -122,7 +122,7 @@ validation_steps = 1000
 training_steps = 10
 starting_epoch = 0
 batch_size = 32
-epochs = 0
+epochs = 1
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
@@ -162,8 +162,8 @@ criterion = 'best_acc'
 
 if not LOAD_EXISTING_MODEL:
     print("Creating new model...\n")
-    # model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-    model = assemble_siamNet(cnn_backbone=cnn_backbone, f=l1_dist, input_shape=inp_shape)
+    model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
+    # model = assemble_siamNet(cnn_backbone=cnn_backbone, f=l1_dist, input_shape=inp_shape)
     model.compile(loss=loss_function, optimizer=optimizer, metrics=metrics)
     model_foldername = get_checkpoint_foldername(resultsPath, model.name)
     print("Name:",model.name,'\n')
@@ -209,8 +209,8 @@ preproc_config = get_config_from_json_file('preproc', "db2_no_discard_lpf_muLaw_
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
-# network_type = "protoNet"
-network_type = "siamNet"
+network_type = "protoNet"
+# network_type = "siamNet"
 
 
 data_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps, print_labels=True, print_labels_frequency=5)
