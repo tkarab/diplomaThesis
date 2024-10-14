@@ -100,8 +100,8 @@ def evaluate_model2(model:SiameseNetwork, data_loader, validation_steps, N):
     return
 
 
-training_steps = 100
-validation_steps = 10000
+training_steps = 2000
+validation_steps = 5000
 starting_epoch = 0
 batch_size = 32
 epochs = 0
