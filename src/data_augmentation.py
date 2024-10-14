@@ -5,6 +5,7 @@ import helper_functions as h
 import random
 import plot_functions
 import time
+from tqdm import tqdm
 
 processed_data_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_processed.npz')
 
@@ -47,12 +48,14 @@ def addGaussianNoise(emg:np.ndarray, snr_db:int = 25):
 
     return np.expand_dims(emg_n,-1)
 
-def apply_augmentation(data, config_dict:dict):
-    print("Performing Data Augmentation...\n")
+def apply_augmentation(data, config_dict:dict, final_sample_subfix, total_subjects):
+    print("Performing Data Augmentation...")
     data_aug = {key: None for key in data}
     ops = config_dict['ops']
     params = config_dict['params']
 
+    progress_bar = tqdm(total=total_subjects, desc="Augmentation", unit=" reps")
+    subjects_completed = 0
     t1 = time.time()
     for key,emg in data.items():
 
@@ -60,11 +63,16 @@ def apply_augmentation(data, config_dict:dict):
             emg = augmentation_funcs[op](emg, **params[op])
         data_aug[key] = np.copy(emg)
 
-        if key[3:] == 'g49r06' :
-            print(f"{key[:3]}/{len(data.items())//294} : {time.time()-t1:.2f}s")
+        if key[3:] == final_sample_subfix :
+            subjects_completed += 1
+            progress_bar.set_postfix(subject=f'{key[:3]}')
+            progress_bar.update(1)  # Update progress bar by 1
+            # print(f"{key[:3]} ({subjects_completed}/{total_subjects}) : {time.time()-t1:.2f}s")
             t1 = time.time()
 
-    print("\n...augmentation has finished")
+    progress_bar.close()
+    print("\n")
+
     return data_aug
 
 

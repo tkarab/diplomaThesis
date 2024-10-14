@@ -4,8 +4,10 @@ import numpy as np
 import time
 import os
 import scipy
-import plot_functions as pl
-import data_augmentation as aug
+from tqdm import tqdm
+
+from plot_functions  import *
+from data_augmentation import *
 from helper_functions import *
 from plot_functions import *
 from constants import *
@@ -117,22 +119,11 @@ def discard_early_and_late_gest_stages(x, seconds_to_keep, fs):
     return x[max(L // 2 - W, 0):min(L // 2 + W, L)]
 
 
-def apply_preprocessing(data_path, config_dict:dict, db:int):
-    print("Performing preprocessing...\n")
-
-    if db == 2:
-        gestures = 49
-        reps = 6
-    elif db == 5:
-        gestures = 52
-        reps = 6
-    elif db == 1:
-        gestures = 52
-        reps = 10
-    total_samples_per_gesture = gestures * reps
-    final_sample_subfix = f'g{gestures:02d}r{reps:02d}'
-
-    data = np.load(data_path)
+def apply_preprocessing(data_path, key_list, final_sample_subfix, total_subjects, config_dict:dict):
+    print("Data processing...")
+    print("...loading the data...")
+    all_data = np.load(data_path)
+    data = {key:all_data[key] for key in key_list}
     data_proc = {key:None for key in data}
     data_seg = {key:None for key in data}
 
@@ -147,25 +138,30 @@ def apply_preprocessing(data_path, config_dict:dict, db:int):
     operations_params = [(preprocess_funcs[op], config_params[op]) for op in preprocess_operations if
                          config_operations[op] == True and op != "SEGMENT"]
 
+    progress_bar = tqdm(total=total_subjects, desc="Preprocessing", unit=" reps")
+    subjects_completed = 0
     t1 = time.time()
     for key, emg in data.items():
+        # for testing purposes
         # for op in op_no_seg:
-        if key == "s12g34r04":
-            print()
+        # if key == "s12g34r04":
+        #     print()
         for func, params in operations_params:
             emg = func(emg, **params)
 
         data_proc[key] = np.expand_dims(emg, -1)
 
         if key[3:] == final_sample_subfix:
-            print(f"{key[:3]}/{len(data.items()) // total_samples_per_gesture} : {time.time() - t1:.2f}s")
+            subjects_completed += 1
+            progress_bar.set_postfix(subject=f'{key[:3]}')
+            progress_bar.update(1)  # Update progress bar by 1
+            # print(f"{key[:3]} ({subjects_completed}/{total_subjects})")
             t1 = time.time()
-
 
     if config_operations["SEGMENT"] == True:
         for key, emg in data_proc.items():
             data_seg[key] = get_segmentation_indices(emg, **config_params["SEGMENT"])
-    print("\n...preprocessing has finished\n")
+    progress_bar.close()
 
     return data_proc, data_seg
 
