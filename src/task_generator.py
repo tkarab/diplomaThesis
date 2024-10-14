@@ -33,11 +33,12 @@ sgr_domains = {
             "r_domain" : {'train' : list(range(1,7)),  'val' : list(range(1,7)),  'test' : list(range(1,7))}
         }
     },
-
+    # TODO
     "db5" : {
 
     },
 
+    # TODO
     "db1" : {
 
     }
@@ -96,14 +97,13 @@ class TaskGenerator(utils.Sequence):
         self.data_intake = ''
         self.network_type = network_type
         self.task_generator = None
-
         self.db = database
 
+        # Preprocessing and augmentation configurations
         self.preproc_config = preprocessing_config
         self.window_size = self.getWindowSize()
         self.rms_win_size = rms_win_size
         self.fileInfoProvider = FileInfoProvider(self.db, self.rms_win_size, N = self.way, k = self.shot, ex = self.experiment, mode=self.mode, get_subsampled_data=True)
-
         self.aug_enabled = aug_enabled
         if self.aug_enabled == True:
             self.aug_config = aug_config
@@ -116,22 +116,24 @@ class TaskGenerator(utils.Sequence):
         self.query_seg_start = []
         self.query_gest_indices = []
 
+        # S,G,R Domains and acceptable keys
+        self.s_domain = []
+        self.g_domain = []
+        self.r_domain = []
+        self.s_r_pairs = []
+        self.get_sgr_domains()
+        self.key_list = self.get_all_acceptable_keys()
+
+        print(f"~~~ {self.mode} loader ~~~".upper())
         self.get__data()
-        self.keyAppDict = self.get_key_app_dict()
+        # self.keyAppDict = self.get_key_app_dict()
         self.channels = self.getNumberOfChannels()
 
         self.batch_size = batch_size
         self.batches_per_epoch = batches
 
-        self.s_domain = []
-        self.g_domain = []
-        self.r_domain = []
-        self.s_r_pairs = []
-
-        self.get_sgr_domains()
-
-
-        self.set_data_intake_type(data_intake)
+        # No need for any other data intake type other than 'generate'
+        self.set_data_intake_type('generate')
 
         return
 
@@ -148,10 +150,23 @@ class TaskGenerator(utils.Sequence):
         return self.batches_per_epoch
 
     def get__data(self):
-        self.data, self.segments = apply_preprocessing(self.fileInfoProvider.getDataFullPath(), self.preproc_config, self.db)
+        """ As of now, apply_preprocessing is only used here. Therefore, total number of subjects and final
+            subject key sub-fix are manually computed here as well """
+        last_rep = self.r_domain[-1]
+        last_gest = self.g_domain[-1]
+        last_subfix = getKey(s=1,g=last_gest, r=last_rep)[3:]
 
+        self.data, self.segments = apply_preprocessing(
+            data_path=self.fileInfoProvider.getDataFullPath(),
+            key_list=self.key_list, final_sample_subfix=last_subfix,
+            total_subjects=len(self.s_domain),
+            config_dict=self.preproc_config
+        )
         if self.aug_enabled:
-            self.data_aug = apply_augmentation(self.data, self.aug_config)
+            self.data_aug = apply_augmentation(data=self.data, config_dict=self.aug_config, total_subjects=len(self.s_domain),final_sample_subfix=last_subfix)
+        print("\n")
+
+        return
 
     def load_tasks_from_file(self):
         full_path = self.fileInfoProvider.getTasksFileFullPath()
@@ -198,15 +213,17 @@ class TaskGenerator(utils.Sequence):
         random_sample = self.data[random_key]
         return random_sample.shape[1]
 
+    # Returns the window size in number of time samples
+    # i.e. if the sampling rate is 100Hz and the window size is meant to be 150ms that would return 15 samples
     def getWindowSize(self):
         w_ms = self.preproc_config['params']['SEGMENT']['window_size_ms']
         fs = self.preproc_config['params']['SEGMENT']['fs']
         return int((w_ms * fs) / 1000)
 
-    def getKeys(self,*entries:tuple) -> list:
+    def getKeys(self,*entries) -> list:
         return [getKey(s,g,r) for s,r,g in entries]
 
-    def getKeys_in_order(self,*entries:tuple) -> list:
+    def getKeys_in_order(self,*entries) -> list:
         return [getKey(s,g,r) for s,g,r in entries]
 
     def set_s_r_pairs(self) -> list:
@@ -227,6 +244,15 @@ class TaskGenerator(utils.Sequence):
 
         return
 
+    """
+    DESCRIPTION
+        Returns a list of all possible acceptable key combinations depending on the s,g,r domains
+        
+    """
+    def get_all_acceptable_keys(self):
+        sgr_comb_list = [(s,g,r) for s in self.s_domain for g in self.g_domain for r in self.r_domain]
+        return self.getKeys_in_order(*sgr_comb_list)
+
     def plotKeyAppHist(self):
         plotDictBar(self.keyAppDict)
 
@@ -236,12 +262,12 @@ class TaskGenerator(utils.Sequence):
         indices = np.arange(segment_start, segment_start+self.window_size)
         if not self.aug_enabled:
             x = np.take(self.data[key],indices,axis=0)
-            self.keyAppDict[key][0] += 1
+            # self.keyAppDict[key][0] += 1
         else:
             #TODO - Might be more depending on the number of unique augmentation techniques used
             ind = np.random.choice([0,1]) # 0: non-aug, 1: aug
             x = np.take([self.data[key], self.data_aug[key]][ind],indices,axis=0)
-            self.keyAppDict[key][ind] += 1
+            # self.keyAppDict[key][ind] += 1
 
         return x
 
