@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from keras.layers import TimeDistributed
 from fsl_functions import *
 
 """
@@ -124,9 +125,39 @@ def get_dense_layers(neurons_per_layer=[]):
     return dense_layers
 
 
+def assemble_siamNet_for_few_shot_infernce(model,inp_shape,N):
+    feature_extractor = model.feature_extractor
+    dense_layers = model.dense_layers
+    f = model.f
+
+    input_shape_4d = (1,) + inp_shape
+    input_shape_5d = (None, None,) + inp_shape
+    layer_support_set_input = layers.Input(input_shape_5d, name="Support_Set_Input")
+    layer_query_set_input = layers.Input(input_shape_4d, name="Query_Set_Input")
+
+    feature_extractor_timeDist = TimeDistributed(feature_extractor)
+    feature_extractor_timeDist_support = TimeDistributed(feature_extractor_timeDist)
+
+    layer_support_embeddings = feature_extractor_timeDist_support(layer_support_set_input)
+    layer_query_embedding = feature_extractor_timeDist(layer_query_set_input)
+
+    layer_support_set_prototypes = produce_prototype(layer_support_embeddings)
+    layer_query_embedding_copied = tf.tile(layer_query_embedding, [1, N, 1])
+
+    layer_dist_func = f([layer_support_set_prototypes, layer_query_embedding_copied])
+
+    pred = TimeDistributed(dense_layers)(layer_dist_func)
+
+    model_val = keras.Model(inputs=[layer_support_set_input, layer_query_set_input], outputs=pred)
+
+    return model_val
+
+
+
 """
 PARAMETERS
     - f: the distance (or similarity) function
+    - cnn_backbone: a CNN model which serves as the feature extractor of the network
 """
 def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     # input_shape_4d = (1,) + input_shape
