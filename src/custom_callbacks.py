@@ -155,14 +155,22 @@ class TrainingInfoCallback(keras.callbacks.Callback):
 
         return
 
+
+"""
+PARAMETERS
+    - criterion: "loss" or "accuracy"
+    
+"""
 class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
-    def __init__(self, model, reduction_factor, min_delta, best_val_loss, patience, cooldown_patience, epochs_without_improvement=0, cooldown_counter=0, min_lr=1e-5):
+    def __init__(self, model, reduction_factor, min_delta, best_val_loss , best_val_accuracy, patience, cooldown_patience, criterion="loss", epochs_without_improvement=0, cooldown_counter=0, min_lr=1e-5):
         super(ReduceLrOnPlateauCustom,self).__init__()
 
         # Model and values
         self.model = model
         self.min_delta = min_delta
         self.best_val_loss = best_val_loss
+        self.best_val_accuracy = best_val_accuracy
+
         self.min_lr = min_lr
         self.reduction_factor = reduction_factor
 
@@ -174,6 +182,9 @@ class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
         self.cooldown_patience = cooldown_patience
         self.cooldown_counter = cooldown_counter
 
+        # Criterion
+        self.criterion = criterion
+
     def on_epoch_end(self, epoch, logs=None):
         current_lr = float(self.model.optimizer.learning_rate.numpy())
         val_loss = logs['val_loss']
@@ -184,11 +195,18 @@ class ReduceLrOnPlateauCustom(keras.callbacks.Callback):
         improvement_made = False
 
         # Improvement
-        if val_loss < self.best_val_loss - self.min_delta:
-            print(f"new best loss {val_loss:.4f}")
-            self.best_val_loss = val_loss
-            self.epochs_without_improvement = 0
-            improvement_made = True
+        if self.criterion == "loss":
+            if val_loss < self.best_val_loss - self.min_delta:
+                print(f"new best loss {val_loss:.4f}")
+                self.best_val_loss = val_loss
+                self.epochs_without_improvement = 0
+                improvement_made = True
+        elif self.criterion == "accuracy":
+            if val_accuracy > self.best_val_accuracy + self.min_delta:
+                print(f"new best accuracy: {val_accuracy:.4f}")
+                self.best_val_accuracy = val_accuracy
+                self.epochs_without_improvement = 0
+                improvement_made = True
 
         # If in cooldown mode no need to make any change yet
         if self.cooldown_counter > 0:
