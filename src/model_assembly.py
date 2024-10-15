@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from keras.layers import TimeDistributed
 from fsl_functions import *
 
 """
@@ -105,10 +106,29 @@ def assemble_protonet_reshape_with_batch(nn_backbone, input_shape:tuple, way:int
 
     return model
 
+"""
+DESCRIPTION
+    Returns a set of fully connected layers, each with the number of neurons defined by a list parameter.
+    Last layer is a single neuron layer providing a scalar output
+    Each layer has a relu activation function except for the last which has a sigmoid (for providing a normalized output between 0.0 and 1.0)
+    
+PARAMETERS
+    - neurons_per_layer = [128,64] would mean 2 layers of 128 and 64 neurons etc before the single neuron output 
+"""
+def get_dense_layers(neurons_per_layer=[]):
+    dense_layers = keras.Sequential()
+    for i,neurons_number in enumerate(neurons_per_layer):
+        dense_layers.add(layers.BatchNormalization())
+        dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
+    dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
+
+    return dense_layers
+
 
 """
 PARAMETERS
     - f: the distance (or similarity) function
+    - cnn_backbone: a CNN model which serves as the feature extractor of the network
 """
 def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     # input_shape_4d = (1,) + input_shape
@@ -132,24 +152,16 @@ def assemble_siamNet(cnn_backbone, f, input_shape:tuple):
     return model
 
 class SiameseNetwork(keras.Model):
-    def __init__(self,cnn_backbone:keras.Model,f,inp_shape:tuple, neurons_per_layer:list=[]):
+    def __init__(self,cnn_backbone:keras.Model,f,inp_shape:tuple, dense_layers):
         super(SiameseNetwork, self).__init__()
         self.feature_extractor = cnn_backbone
         self.f = f
         self.inp_shape = inp_shape
-        self.dense_layers = self.define_dense_layers(neurons_per_layer=neurons_per_layer)
+
+        self.dense_layers = dense_layers
 
         return
 
-    def define_dense_layers(self,neurons_per_layer):
-        dense_layers = keras.Sequential()
-        # neurons_per_layer = [128,64] would mean 2 layers of 128 and 64 neurons etc before the single neuron output
-        for i,neurons_number in enumerate(neurons_per_layer):
-            dense_layers.add(layers.BatchNormalization())
-            dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
-        dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
-
-        return dense_layers
     def call(self, input):
         x1,x2 = input
 
@@ -161,3 +173,30 @@ class SiameseNetwork(keras.Model):
         similarity_score = self.dense_layers(embedding_dist)
 
         return similarity_score
+
+def assemble_siamNet_for_few_shot_infernce(model,inp_shape,N):
+    feature_extractor = model.feature_extractor
+    dense_layers = model.dense_layers
+    f = model.f
+
+    input_shape_4d = (1,) + inp_shape
+    input_shape_5d = (None, None,) + inp_shape
+    layer_support_set_input = layers.Input(input_shape_5d, name="Support_Set_Input")
+    layer_query_set_input = layers.Input(input_shape_4d, name="Query_Set_Input")
+
+    feature_extractor_timeDist = TimeDistributed(feature_extractor)
+    feature_extractor_timeDist_support = TimeDistributed(feature_extractor_timeDist)
+
+    layer_support_embeddings = feature_extractor_timeDist_support(layer_support_set_input)
+    layer_query_embedding = feature_extractor_timeDist(layer_query_set_input)
+
+    layer_support_set_prototypes = produce_prototype(layer_support_embeddings)
+    layer_query_embedding_copied = tf.tile(layer_query_embedding, [1, N, 1])
+
+    layer_dist_func = f([layer_support_set_prototypes, layer_query_embedding_copied])
+
+    pred = TimeDistributed(dense_layers)(layer_dist_func)
+
+    model_val = keras.Model(inputs=[layer_support_set_input, layer_query_set_input], outputs=pred)
+
+    return model_val
