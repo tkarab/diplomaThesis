@@ -42,6 +42,13 @@ def inner_product_norm(args):
     x1, x2 = args
     return (x1/tf.norm(x1))*(x2/tf.norm(x2))
 
+def inner_product_norm_res(args):
+    x1, x2 = args
+    y = x1*x2
+    # if tf.norm(y) == 0.0:
+    #     return tf.zeros_like(y)
+    return y/tf.norm(y)
+
 def inner_product_abs(args):
     x1, x2 = args
     return tf.abs(x1*x2)
