@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.fft import fft, ifft
+from helper_functions import *
 
 def plot_sEMG(emg, fs, channels=[1,2,3,4,5,6], title='', figure_name = 'Figure', export=False, filename=''):
   fig = plt.figure()
@@ -112,3 +113,57 @@ def plotDictBar(data_dict:dict):
 
   return
 
+
+"""
+    - input_file: the full path of the file
+    - metric = 'train_accuracy', 'train_loss', 'val_accuracy', 'val_loss'
+    - plot_mean: for plotting a mean value rectified version of the metric
+    - input_type: "filename", "array"
+"""
+
+
+def plot_train_results(input_file="", label="", scores_hist={}, input_type="filename", metric='val_accuracy', plot_mean=True, number_of_elements_to_take_mean=10, title=""):
+  if input_type == "filename":
+    scores = extract_scores_from_txt(input_file)
+  else:
+    scores = scores_hist
+
+  res = scores[metric]
+  res_mean = [np.mean(res[max(0, i - number_of_elements_to_take_mean + 1):i + 1]) for i in range(len(res))]
+  epochs = scores['epochs']
+
+  if plot_mean == True:
+    plt.plot(epochs, 100*np.array(res_mean), label = label)
+  else:
+    plt.plot(epochs, 100*np.array(res), label = label)
+
+  # plt.title(title)  # Set the title of the plot
+  plt.xlabel('epochs')  # Label for x-axis
+  plt.ylabel(metric.replace('_',' '))
+  plt.show()
+  plt.legend(title=title)
+  return
+
+def plot_accuracies_hist(train_accuracies, val_accuracies, xlabels):
+  fig, ax = plt.subplots()
+  bar_width = 0.35
+  n = len(train_accuracies)
+
+  # Plot train accuracy bars
+  bars_train = ax.bar([i for i in range(n)], train_accuracies, bar_width, label='Train Accuracy', color='blue')
+
+  # Plot validation accuracy bars, shifted by the bar width
+  bars_val = ax.bar(np.array([i for i in range(n)]) + bar_width, val_accuracies, bar_width, label='Validation Accuracy', color='red')
+
+
+  ax.set_xlabel('Seconds kept from each movement')
+  ax.set_ylabel('Accuracy')
+  # ax.set_title('Train and Validation Accuracy')
+  ax.set_xticks(np.array([i for i in range(n)]) + bar_width / 2)
+  ax.set_xticklabels([f'{xlabels[i]}' for i in range(n)])
+  ax.legend()
+
+  # Display the plot
+  plt.show(block=False)
+
+  return
