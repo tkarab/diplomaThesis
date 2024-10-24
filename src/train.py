@@ -150,7 +150,7 @@ best_val_loss = float('inf')
 best_val_accuracy = 0.0
 
 
-cnn_backbone = AtzoriNetDB2_embedding_only(input_shape=inp_shape, add_dropout=True, add_regularizer=True)
+cnn_backbone = AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp_shape, add_dropout=False, add_regularizer=False)
 
 resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
 
@@ -172,17 +172,19 @@ if not LOAD_EXISTING_MODEL:
 
     #Results
     resultsPath = os.path.join(resultsPath, model_foldername)
-    os.mkdir(resultsPath)
+    if SAVE_MODEL == True:
+        os.mkdir(resultsPath)
     checkpoint_latest_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='latest'))
     checkpoint_best_acc_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_acc'))
     checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
 
     # Save initial state for all 3 models
-    # model.save_weights(checkpoint_latest_path)
-    # model.save_weights(checkpoint_best_loss_path)
-    # model.save_weights(checkpoint_best_acc_path)
+    # if SAVE_MODEL == True:
+    #   model.save_weights(checkpoint_latest_path)
+    #   model.save_weights(checkpoint_best_loss_path)
+    #   model.save_weights(checkpoint_best_acc_path)
 
-    print(f"...model saved at '{resultsPath}'")
+        # print(f"...model saved at '{resultsPath}'")
 
 else:
     print("Loading existing model...\n")
@@ -200,7 +202,8 @@ else:
     load_model_fullpath = {"latest":checkpoint_latest_path, "best_acc":checkpoint_best_acc_path, "best_loss":checkpoint_best_loss_path}[criterion]
 
     get_training_config_from_json_file(os.path.join(resultsPath,model_foldername + "_training_info.json"),criterion)
-    keep_result_lines_until_best(filepath=os.path.join(resultsPath,model_foldername + "_results.txt"),epoch_to_keep_until=starting_epoch)
+    if SAVE_MODEL == True:
+        keep_result_lines_until_best(filepath=os.path.join(resultsPath,model_foldername + "_results.txt"),epoch_to_keep_until=starting_epoch)
     print(f"...model loaded. Resuming training from epoch {starting_epoch}")
 
     model = keras.models.load_model(load_model_fullpath)
@@ -243,7 +246,7 @@ patience = 2
 cooldown_patience = 2
 min_lr = 1e-4
 min_delta = 0.001
-#lr_adjustment_callback = ReduceLrOnPlateauCustom(model=model, reduction_factor=reduction_factor, patience=patience,cooldown_patience=cooldown_patience,min_lr=min_lr, min_delta=min_delta, best_val_loss=best_loss)
+# lr_adjustment_callback = ReduceLrOnPlateauCustom(model=model, criterion="loss", reduction_factor=reduction_factor, patience=patience,cooldown_patience=cooldown_patience,min_lr=min_lr, min_delta=min_delta, best_val_loss=best_val_loss, best_val_accuracy=best_val_accuracy)
 lr_adjustment_callback = ReduceLrSteadilyCustom(model=model, reduction_factor=reduction_factor,patience=patience,min_lr=min_lr)
 
 
@@ -273,28 +276,29 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
     val_loss, val_accuracy = model.evaluate(data_loader)
     logs = {"val_accuracy": val_accuracy, "val_loss": val_loss}
 
-    # Model checkpoint: save model if it has the best performance
-    if(val_loss < best_val_loss):
-        best_val_loss = val_loss
-        checkpointCallBack_val_loss.on_epoch_end(epoch_num, logs)
+    if SAVE_MODEL == True:
+        # Model checkpoint: save model if it has the best performance
+        if(val_loss < best_val_loss):
+            best_val_loss = val_loss
+            checkpointCallBack_val_loss.on_epoch_end(epoch_num, logs)
 
-        trainingInfoCallback.best_val_loss = best_val_loss
-        trainingInfoCallback.best_epoch_val_loss = epoch_num+1
-        trainingInfoCallback.best_loss_lr = float(model.optimizer.learning_rate.numpy())
+            trainingInfoCallback.best_val_loss = best_val_loss
+            trainingInfoCallback.best_epoch_val_loss = epoch_num+1
+            trainingInfoCallback.best_loss_lr = float(model.optimizer.learning_rate.numpy())
 
-    if(val_accuracy > best_val_accuracy):
-        best_val_accuracy = val_accuracy
-        checkpointCallBack_val_acc.on_epoch_end(epoch_num,logs)
+        if(val_accuracy > best_val_accuracy):
+            best_val_accuracy = val_accuracy
+            checkpointCallBack_val_acc.on_epoch_end(epoch_num,logs)
 
-        trainingInfoCallback.best_val_acc = best_val_accuracy
-        trainingInfoCallback.best_epoch_val_acc = epoch_num+1
-        trainingInfoCallback.best_acc_lr = float(model.optimizer.learning_rate.numpy())
+            trainingInfoCallback.best_val_acc = best_val_accuracy
+            trainingInfoCallback.best_epoch_val_acc = epoch_num+1
+            trainingInfoCallback.best_acc_lr = float(model.optimizer.learning_rate.numpy())
 
-    checkpointCallBack_latest.on_epoch_end(epoch_num, logs)
+        checkpointCallBack_latest.on_epoch_end(epoch_num, logs)
 
-    # Write results
-    train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
-    trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
+        # Write results
+        train_results = dict(**{"train_accuracy" : history.history['categorical_accuracy'][0], 'train_loss' : history.history['loss'][0]},**logs)
+        trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
 
     if LR_SCHEDULER_ENABLED:
         min_lr_reached = lr_adjustment_callback.on_epoch_end(epoch_num,logs)
