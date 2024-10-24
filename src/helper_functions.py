@@ -174,3 +174,94 @@ def get_line_starting_number(line):
 
     return int(line[:i])
 
+def parse_training_results_to_txt(input_file, output_file):
+    with open(input_file, 'r') as file:
+        lines = file.readlines()
+
+    # Initialize variables
+    epochs = []
+    train_acc = []
+    train_loss = []
+    val_acc = []
+    val_loss = []
+
+    epoch_num = 0
+
+    for i, line in enumerate(lines):
+        if line.startswith("epoch"):
+            # Increment the epoch count
+            epoch_num += 1
+
+            # Extract the next epoch data
+            train_line = lines[i + 2]
+            val_line = lines[i + 4]
+
+            # Parse the training line
+            train_data = train_line.split(" - ")
+            train_loss_val = float(train_data[2].split(": ")[1])
+            train_acc_val = float(train_data[3].split(": ")[1])
+
+            # Parse the validation line
+            val_data = val_line.split(" - ")
+            val_loss_val = float(val_data[2].split(": ")[1])
+            val_acc_val = float(val_data[3].split(": ")[1])
+
+            # Append extracted values to respective lists
+            epochs.append(str(epoch_num))
+            train_acc.append(train_acc_val)
+            train_loss.append(train_loss_val)
+            val_acc.append(val_acc_val)
+            val_loss.append(val_loss_val)
+
+    # Write to the output file in the desired format
+    with open(output_file, 'w') as file:
+        file.write("Epoch\tTrain Accuracy\tTrain Loss\tVal Accuracy\tVal Loss\n")
+        file.write("-----------------------------------------------------------------\n")
+
+        for i in range(len(epochs)):
+            file.write(f"{epochs[i]}\t{train_acc[i]:.4f}\t\t{train_loss[i]:.4f}\t\t{val_acc[i]:.4f}\t\t{val_loss[i]:.4f}\n")
+
+"""
+DESCRIPTION 
+    Takes as input the path t a txt file containing the training results of a certain experiment.
+    It should have the following format:
+    
+    Epoch	Train Accuracy	Train Loss	Val Accuracy	Val Loss
+    -----------------------------------------------------------------
+    1	    0.5939		    0.6601		 0.4098		    0.2055
+    2	    0.6467		    0.6216		 0.4540		    0.2200
+    3	    0.6646		    0.6050		 0.4588		    0.2422
+    4	    0.6750		    0.5939		 0.5018		    0.2231
+    5	    0.6863		    0.5827		 0.5060		    0.2147
+
+    It returns 5 lists containing the epochs, train accuracy, train loss, val accuracy, val loss respectively
+    the lists are stored in a dictionary.For this example the output should look like:
+    {"epochs" : np.array([1,2,3,4,5])
+     "train_accuracy" : np.array([0.5939,0.6467,0.6646,0.6750,0.6863])
+     ...
+     etc
+     }
+"""
+def extract_scores_from_txt(input_file):
+    with open(input_file, 'r') as file:
+        lines = file.readlines()
+
+    for start, line in enumerate(lines):
+        if line.startswith('---'):
+            break
+
+    scores = {'epochs': [], 'train_accuracy': [], 'train_loss': [], 'val_accuracy': [], 'val_loss': []}
+    metric_indices = {'train_accuracy': 1, 'train_loss': 3, 'val_accuracy': 5, 'val_loss': 7}
+
+    for line in lines[start+1:]:
+        line_split = line.split('\t')
+        scores['train_accuracy'].append(float(line_split[1]))
+        scores['train_loss'].append(float(line_split[3]))
+        scores['val_accuracy'].append(float(line_split[5]))
+        scores['val_loss'].append(float(line_split[7]))
+
+    scores = {key:np.array(score_list) for key, score_list in scores.items()}
+    L = len(scores['train_loss'])
+    scores['epochs'] = np.arange(1, L + 1)
+
+    return scores
