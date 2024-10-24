@@ -1,7 +1,13 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import os
 import json
+
+from flags import *
+from plot_functions import *
+from helper_functions import *
+
 
 class IterationLoggingCallback(keras.callbacks.Callback):
     # def on_batch_end(self, batch, logs=None):
@@ -274,4 +280,39 @@ class ReduceLrSteadilyCustom(keras.callbacks.Callback):
             self.counter = 0
 
         return min_lr_reached
+
+
+class PlotResultsCallback(keras.callbacks.Callback):
+    def __init__(self, filenames, labels, title, metric):
+        super(PlotResultsCallback, self).__init__()
+        self.filenames = filenames
+        self.metric = metric
+        self.labels = labels
+        self.title = title
+        self.current_scores = {
+            "train_loss" : [],
+            "train_accuracy" : [],
+            "val_loss" : [],
+            "val_accuracy" : [],
+            "epochs" : []
+        }
+        self.scores_to_compare_with = []
+        for i, filename in enumerate(self.filenames):
+            self.scores_to_compare_with.append(extract_scores_from_txt(filename))
+
+        return
+
+    def on_epoch_end(self, epoch, logs=None):
+        for m in ["train_loss", "train_accuracy", "val_loss", "val_accuracy"]:
+            self.current_scores[m] = np.append(self.current_scores[m], logs[m])
+
+        self.current_scores["epochs"].append(epoch+1)
+        plt.clf()
+        for i,scores in enumerate(self.scores_to_compare_with):
+            plot_train_results(scores_hist=scores, metric=self.metric, label=self.labels[i], input_type="array")
+        plot_train_results(scores_hist=self.current_scores, metric=self.metric, label="current", input_type="array")
+
+        return
+        
+
 
