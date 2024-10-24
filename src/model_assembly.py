@@ -119,7 +119,7 @@ def get_dense_layers(neurons_per_layer=[]):
     dense_layers = keras.Sequential()
     for i,neurons_number in enumerate(neurons_per_layer):
         dense_layers.add(layers.BatchNormalization())
-        dense_layers.add(layers.Dense(units=neurons_number,activation='relu',name=f"dense_layer_{i+1}"))
+        dense_layers.add(layers.Dense(units=neurons_number,activation='relu', kernel_initializer=keras.initializers.he_normal, name=f"dense_layer_{i+1}"))
     dense_layers.add(layers.Dense(units=1,activation='sigmoid', name=f"prediction_dense_layer"))
 
     return dense_layers
