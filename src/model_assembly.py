@@ -1,3 +1,5 @@
+import os.path
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -173,6 +175,20 @@ class SiameseNetwork(keras.Model):
         similarity_score = self.dense_layers(embedding_dist)
 
         return similarity_score
+
+    def save(self, filepath, **kwargs):
+        self.feature_extractor.save(filepath+'_feature_extractor.h5')
+        self.dense_layers.save(filepath+'_dense_layers.h5')
+
+def load_siamNet(filepath,modelname):
+    filepath = os.path.join(filepath,modelname)
+    feature_extractor_path = filepath + '_feature_extractor.h5'
+    dense_path = filepath + '_dense_layers.h5'
+
+    feature_extractor = keras.models.load_model(feature_extractor_path)
+    dense_layers = keras.models.load_model(dense_path)
+
+    return SiameseNetwork(cnn_backbone=feature_extractor, inp_shape=(15,12,1), dense_layers=dense_layers,f=l2_dist)
 
 def assemble_siamNet_for_few_shot_infernce(model,inp_shape,N):
     feature_extractor = model.feature_extractor
