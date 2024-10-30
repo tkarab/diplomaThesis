@@ -7,6 +7,8 @@ import json
 from flags import *
 from plot_functions import *
 from helper_functions import *
+from custom_models import *
+from model_assembly import *
 
 
 class IterationLoggingCallback(keras.callbacks.Callback):
@@ -309,10 +311,52 @@ class PlotResultsCallback(keras.callbacks.Callback):
         self.current_scores["epochs"].append(epoch+1)
         plt.clf()
         for i,scores in enumerate(self.scores_to_compare_with):
-            plot_train_results(scores_hist=scores, metric=self.metric, label=self.labels[i], input_type="array")
-        plot_train_results(scores_hist=self.current_scores, metric=self.metric, label="current", input_type="array")
+            plot_train_results_exp_vs_exp(scores_hist=scores, metric=self.metric, label=self.labels[i], input_type="array")
+        plot_train_results_exp_vs_exp(scores_hist=self.current_scores, metric=self.metric, label="current", input_type="array")
 
         return
         
 
+class SaveSiamNetCallback(keras.callbacks.Callback):
+    def __init__(self, model:SiameseNetwork, best_loss=float('inf'), best_acc=0):
+        super(SaveSiamNetCallback, self).__init__()
+
+        # metrics
+        self.metric = getMetricChoice()
+        self.best_loss = best_loss
+        self.best_acc = best_acc
+
+        # model
+        self.model = model
+
+        # directory
+        self.directory = chooseDirectory(RESULTS_PATH_ALL_EXPERIMENTS)
+
+        # mode name
+        modelname = input("modelname: ")
+
+        # directory full path
+
+        # component names
+        # modelpath is up to the model name, missing subfix '_feature_extractor.h5' and '_dense_layers.h5'
+        # which will be added in the SiameseNetwork.save method
+        os.mkdir(os.path.join(self.directory,modelname))
+        self.modelpath = os.path.join(self.directory,modelname,modelname)
+
+        return
+
+    def on_epoch_end(self, epoch, logs=None):
+        current_score = logs[self.metric]
+
+        if self.metric.endswith("loss"):
+            if current_score < self.best_loss:
+                print(f"New best {self.metric}: {current_score:.4f}")
+                self.model.save(filepath=self.modelpath)
+                self.best_loss = current_score
+
+        elif self.metric.endswith("accuracy"):
+            if current_score > self.best_acc:
+                print(f"New best {self.metric}: {current_score:.4f}")
+                self.model.save(filepath=self.modelpath)
+                self.best_acc = current_score
 
