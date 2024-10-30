@@ -122,7 +122,7 @@ def plotDictBar(data_dict:dict):
 """
 
 
-def plot_train_results(input_file="", label="", scores_hist={}, input_type="filename", metric='val_accuracy', plot_mean=True, number_of_elements_to_take_mean=10, title=""):
+def plot_train_results_exp_vs_exp(input_file="", label="", scores_hist={}, input_type="filename", metric='val_accuracy', plot_mean=True, number_of_elements_to_take_mean=10, title="", legend_title=""):
   if input_type == "filename":
     scores = extract_scores_from_txt(input_file)
   else:
@@ -132,16 +132,60 @@ def plot_train_results(input_file="", label="", scores_hist={}, input_type="file
   res_mean = [np.mean(res[max(0, i - number_of_elements_to_take_mean + 1):i + 1]) for i in range(len(res))]
   epochs = scores['epochs']
 
-  if plot_mean == True:
-    plt.plot(epochs, 100*np.array(res_mean), label = label)
+  if metric.endswith("accuracy"):
+    a=100
   else:
-    plt.plot(epochs, 100*np.array(res), label = label)
+    a=1
 
-  # plt.title(title)  # Set the title of the plot
+
+  if plot_mean == True:
+    plt.plot(epochs, a*np.array(res_mean), label = label)
+  else:
+    plt.plot(epochs, a*np.array(res), label = label)
+
+  plt.ylim([0,a])
+  plt.title(title)  # Set the title of the plot
   plt.xlabel('epochs')  # Label for x-axis
   plt.ylabel(metric.replace('_',' '))
   plt.show()
-  plt.legend(title=title)
+  plt.legend(title=legend_title)
+
+  return
+
+"""
+PARAMETERS
+    - metric: either "accuracy" or "loss"
+"""
+def plot_train_results_same_exp(input_file="", scores_hist={}, input_type="filename", metric='accuracy', plot_mean=True, number_of_elements_to_take_mean=10, title="", legend_title=""):
+  if input_type == "filename":
+    scores = extract_scores_from_txt(input_file)
+  else:
+    scores = scores_hist
+
+  metrics = ["train_" + metric, "val_" + metric]
+
+  for m in metrics:
+    res = scores[m]
+    res_mean = [np.mean(res[max(0, i - number_of_elements_to_take_mean + 1):i + 1]) for i in range(len(res))]
+    epochs = scores['epochs']
+    label = m.replace("_"," ")
+    if metric == "accuracy":
+      a=100
+    else:
+      a=1
+
+    if plot_mean == True:
+      plt.plot(epochs, a * np.array(res_mean), label=label)
+    else:
+      plt.plot(epochs, a * np.array(res), label=label)
+
+  plt.ylim([0,a])
+  plt.title(title)  # Set the title of the plot
+  plt.xlabel('epochs')  # Label for x-axis
+  plt.ylabel(metric)
+  plt.show()
+  plt.legend(title=legend_title)
+
   return
 
 def plot_accuracies_hist(train_accuracies, val_accuracies, xlabels):
