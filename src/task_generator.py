@@ -294,7 +294,10 @@ class TaskGenerator(utils.Sequence):
                 elif self.experiment in ['1','2b','3']:
                     self.task_generator = self.generate_task_keys
         elif self.network_type == "siamNet":
-            self.task_generator = self.generate_siamNet_task
+            if self.experiment == "2a":
+                self.task_generator = self.generate_siamNet_task2a
+            else:
+                self.task_generator = self.generate_siamNet_task
         else:
             exit("invalid network type in TaskGenerator __init__. Should be between 'siamNet' and 'protoNet'")
 
@@ -325,7 +328,7 @@ class TaskGenerator(utils.Sequence):
     def set_aug_enabled(self,aug_enabled):
         self.aug_enabled = aug_enabled
 
-
+    #TODO - Return the actual data instead of their keys
     def generate_task_keys(self, index):
         support_set_keys = []
         query_keys = []
@@ -362,6 +365,7 @@ class TaskGenerator(utils.Sequence):
 
         return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
 
+    #TODO - Return the actual data instead of their keys
     def generate_task_keys_2a(self, index):
         support_set_keys = []
         query_keys = []
@@ -427,9 +431,36 @@ class TaskGenerator(utils.Sequence):
 
         return np.array(x1_batch), np.array(x2_batch), np.array(labels_batch)
 
+    def generate_siamNet_task2a(self, index):
+        x1_batch = []
+        x2_batch = []
+        labels_batch = []
 
+        for i in range(self.batch_size):
+            # 0 for pair of different classes and 1 for pair of same class
+            label = random.choice([0,1])
+            s = random.choice(self.s_domain)
 
+            if label == 0:
+                # Picking 2 different gestures in the case of 0 label
+                gests = random.sample(self.g_domain, 2)
+                sgr_list = [(s,random.choice(self.r_domain),g) for g in gests]
 
+            # Label 1: Picking the same gesture for both samples of the pair
+            else:
+                gest = random.choice(self.g_domain)
+                # Since the gesture and the subjects are the same for both samples of the pair, we must pick 2
+                # different reps of the same gesture performed by the same subject
+                reps = random.sample(self.r_domain,2)
+                sgr_list = [(s,r,gest) for r in reps]
+
+            key1,key2 = self.getKeys(*sgr_list)
+
+            x1_batch.append(self.get_segment_of_semg(key1, random.choice(self.segments[key1])))
+            x2_batch.append(self.get_segment_of_semg(key2, random.choice(self.segments[key2])))
+            labels_batch.append(label)
+
+        return np.array(x1_batch), np.array(x2_batch), np.array(labels_batch)
 
     def get_premade_keys(self,index):
         ind = np.arange(index*self.batch_size, (index+1)*self.batch_size)
