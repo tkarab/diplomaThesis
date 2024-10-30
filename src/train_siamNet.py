@@ -30,20 +30,24 @@ PARAMETERS
 """
 def run_callbacks():
     logs = {"val_accuracy": val_accuracy, "val_loss": val_loss}
+    full_logs = dict(
+        **{"train_accuracy": history.history['binary_accuracy'][0], 'train_loss': history.history['loss'][0]},
+        **logs)
     early_stopping_mode_on = False
 
     if SAVE_MODEL == True:
-        if CHECKPOINT_LATEST_ENABLED:    #TODO
-            pass
-        if CHECKPOINT_BEST_LOSS_ENABLED: #TODO
-            pass
-        if CHECKPOINT_BEST_ACC_ENABLED:  #TODO
-            pass
-        if SAVE_TRAIN_STATS_ENABLED:     #TODO
-            train_results = dict(
-                **{"train_accuracy": history.history['categorical_accuracy'][0], 'train_loss': history.history['loss'][0]},
-                **logs)
-            # trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=train_results)
+        saveModelCallback.on_epoch_end(epoch=epoch_num, logs=full_logs)
+
+        # if CHECKPOINT_LATEST_ENABLED:    #TODO
+        #     pass
+        # if CHECKPOINT_BEST_LOSS_ENABLED: #TODO
+        #     pass
+        # if CHECKPOINT_BEST_ACC_ENABLED:  #TODO
+        #     pass
+        # if SAVE_TRAIN_STATS_ENABLED:     #TODO
+        #     pass
+            # trainingInfoCallback.on_epoch_end(epoch=epoch_num, logs=full_logs)
+
     if PLOT_RESULTS_ENABLED:
         resultsPlotCallback.on_epoch_end(logs=dict(
             **{"train_accuracy": history.history['binary_accuracy'][0], 'train_loss': history.history['loss'][0]},
@@ -79,7 +83,6 @@ def evaluate_model(model:SiameseNetwork, data_loader, N):
     loss1 = 'categorical_crossentropy'
     loss2 = contrastive_loss
     model_val.compile(optimizer, loss=loss2, metrics=['categorical_accuracy'])
-    print("Validation")
     val_loss, val_accuracy = model_val.evaluate(data_loader)
 
     return val_loss, val_accuracy
@@ -136,12 +139,28 @@ def evaluate_model2(model:SiameseNetwork, data_loader, validation_steps, N):
 
     return
 
+def test_siamNet(model:SiameseNetwork, test_loader ,k=10):
+    accuracies = []
+    print("\n")
+    print(" ~~~ Testing ~~~ ")
+    for i in range(k):
+        print(f"\n{i+1}/{k}")
+        val_loss, val_accuracy = evaluate_model(model, test_loader, N)
+        accuracies.append(100*val_accuracy)
+
+    mean = np.mean([accuracies])
+    stdev = np.std(accuracies)
+    best = np.max(accuracies)
+
+    print(f"Test results: {mean:.2f} ± {stdev:.2f}% (best: {best:.2f}%)")
+
+    return mean, stdev, best
 
 training_steps = 100
-validation_steps = 1000
+validation_steps = 100
 starting_epoch = 0
 batch_size = 128
-epochs = 10
+epochs = 5
 win_size = 15
 channels = 12
 inp_shape = (win_size,channels,1)
@@ -158,7 +177,7 @@ db = 2
 rms = 100
 
 # experiment, way, shot
-ex = '1'
+ex = '2a'
 N = 5
 k = 5
 
@@ -174,31 +193,34 @@ min_lr = 1e-4
 min_delta = 0.001
 
 
-cnn_backbone = AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp_shape, add_dropout=False, add_regularizer=False)
+if LOAD_EXISTING_MODEL == False:
+    cnn_backbone = AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp_shape, add_dropout=False, add_regularizer=False)
+    dense_layers = get_dense_layers(neurons_per_layer=[])
+    # resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
 
-resultsPath = os.path.join(RESULTS_DIRECTORIES_DICT[ex], get_results_dir_fullpath(ex, N, k))
+    print("Creating new model...\n")
+    # model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
+    model = SiameseNetwork(cnn_backbone=cnn_backbone, f=l2_dist, inp_shape=inp_shape, dense_layers=dense_layers)
+    # model_foldername = get_checkpoint_foldername(resultsPath, model.name)
 
-print("Creating new model...\n")
-# model = assemble_protonet_reshape_with_batch(cnn_backbone, inp_shape, way=N, shot=k)
-model = SiameseNetwork(cnn_backbone=cnn_backbone, f=l2_dist, inp_shape=inp_shape, dense_layers=get_dense_layers(neurons_per_layer=[]))
+else:
+    path = chooseDirectory(initial_dir=RESULTS_DIRECTORIES_DICT[ex])
+    modelname = path.split('/')[-1]
+    model = load_siamNet(filepath=path, modelname=modelname)
+
 model.compile(optimizer=keras.optimizers.Adam(learning_rate), loss='binary_crossentropy', metrics=['binary_accuracy'])
-model_foldername = get_checkpoint_foldername(resultsPath, model.name)
 
 #Results
-resultsPath = os.path.join(resultsPath, model_foldername)
+# resultsPath = os.path.join(resultsPath, model_foldername)
 
-if SAVE_MODEL == True:
-    # os.mkdir(resultsPath)
-    pass
-
-checkpoint_latest_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='latest'))
-checkpoint_best_acc_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_acc'))
-checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
+# checkpoint_latest_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='latest'))
+# checkpoint_best_acc_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_acc'))
+# checkpoint_best_loss_path = os.path.join(resultsPath, get_model_checkpoint_fullname(model_foldername, criterion='best_loss'))
 
 # print(f"...model saved at '{resultsPath}'")
 
 
-preproc_config = get_config_from_json_file('preproc', "db2_no_discard_lpf_muLaw_min_max")
+preproc_config = get_config_from_json_file('preproc', "db2_discard_1.5_lpf_minmax_no_muLaw")
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
@@ -253,6 +275,8 @@ elif ex == "4":
 
 
 # Custom Callbacks
+if SAVE_MODEL == True:
+    saveModelCallback = SaveSiamNetCallback(model)
 # lr_adjustment_callback = ReduceLrOnPlateauCustom(model=model, criterion="loss", reduction_factor=reduction_factor, patience=patience,cooldown_patience=cooldown_patience,min_lr=min_lr, min_delta=min_delta, best_val_loss=best_val_loss, best_val_accuracy=best_val_accuracy)
 lr_adjustment_callback = ReduceLrSteadilyCustom(model=model, reduction_factor=reduction_factor,patience=patience,min_lr=min_lr)
 # checkpointCallBack_val_acc = ModelCheckpoint(checkpoint_best_acc_path, save_best_only=True, monitor='val_accuracy', mode='min')
@@ -274,9 +298,15 @@ for epoch_num in range(starting_epoch, starting_epoch+epochs):
 
 # Testing the model
 if ex == "1":
-    evaluate_model(model, val_loader,N)
+    test_siamNet(model, val_loader,k=10)
 else:
-    evaluate_model(model, test_loader,N)
+    test_siamNet(model, test_loader,k=10)
+
+for i in range(100):
+    [x,y],label = train_loader[i]
+    [x_val,y_val], label_val = val_loader[i]
+    if ex!='1' :
+        [x_test, y_test], l_test = test_loader[i]
 
 print()
 
