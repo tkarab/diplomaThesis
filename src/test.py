@@ -15,6 +15,7 @@ from preprocessing import *
 from matplotlib import pyplot as plt
 import tensorflow as tf
 
+from custom_callbacks import *
 
 
 root = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 1\5_way_5_shot'
@@ -82,8 +83,19 @@ subdir = "test_discard"
 inp = (15,12,1)
 cnn_backbone =  AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp)
 siamnetTest = SiameseNetwork(cnn_backbone=cnn_backbone, inp_shape=inp, f=l2_dist, dense_layers=get_dense_layers([]))
-x = tf.random.uniform(shape=(1,)+inp, minval=0, maxval=1)
-y = tf.random.uniform(shape=(1,)+inp, minval=0, maxval=1)
+x = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
+y = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
 
-siamnetTest([x,y])
+out = siamnetTest([x,y])
+
+filepath = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results"
+modelname = r"\siamNet"
+
+siamnetTest.save(filepath=filepath+modelname)
+
+siamnetLoaded = load_siamNet(filepath, modelname)
+
+callback = SaveSiamNetCallback(metric = "val_accuracy")
+
+print()
 
