@@ -4,6 +4,9 @@ import numpy as np
 import json
 from constants import *
 
+import tkinter as tk
+from tkinter import filedialog
+
 """
 DESCRIPTION
     Gets a list of keys (ie ['s1g1r3','s12g23r2','s12g40r1'] and returns the unique
@@ -265,3 +268,23 @@ def extract_scores_from_txt(input_file):
     scores['epochs'] = np.arange(1, L + 1)
 
     return scores
+
+def chooseDirectory(initial_dir=""):
+    # Create a root window (it won't show up)
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+
+    # Open file dialog and allow multiple selection
+    if not initial_dir == "":
+        directory = filedialog.askdirectory(title="Select directory", initialdir=initial_dir)
+    else:
+        directory = filedialog.askdirectory(title="Select files")
+
+    return directory
+
+def getMetricChoice():
+    choice = int(input("Select metric:\n 0: train_accuracy\n 1: train_loss\n 2: val_accuracy\n 3: val_loss\n\nYour choice: "))
+    if choice not in [0,1,2,3]:
+        return -1
+    return ["train_accuracy","train_loss","val_accuracy","val_loss"][choice]
+
