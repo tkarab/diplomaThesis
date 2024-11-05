@@ -2,6 +2,9 @@ import numpy as np
 import time
 import os
 import sys
+
+from plot_functions import *
+from preprocessing import *
 from helper_functions import *
 from constants import *
 
@@ -131,27 +134,74 @@ def apply_rms_rect(db: int, db_dir_path: str, fs: int, win_size_ms: int):
 
     return
 
+"""
+DESCRIPTION 
+    Applies rms rectification (and optionally subsampling) to all recordings of the subject provided, 
+    and saves it in the respective folder in the Preprocessed/db6 directory.
+
+"""
+def apply_rms_rect_db6(subject, win_size_ms, subsample_enabled = True):
+    days = [1,2,3,4,5]
+    times = [1,2]
+    print(f"Subject: {subject}")
+
+    subject_sep_data_path = os.path.join(SEPARATED_DATA_PATH, 'db6', f'db6_s{subject}')
+
+    db6_rms_data_path = os.path.join(PROCESSED_DATA_PATH_DB6,f'rms{win_size_ms}')
+    if not os.path.exists(db6_rms_data_path):
+        os.mkdir(db6_rms_data_path)
+
+    subject_rms_data_path = os.path.join(db6_rms_data_path, f'db6_s{subject}')
+    if not os.path.exists(subject_rms_data_path):
+        os.mkdir(subject_rms_data_path)
+
+    for d in days:
+        for t in times:
+            print(f"\nD:{d}, T:{t}")
+            dt_path = os.path.join(subject_sep_data_path, f's{subject}_d{d}_t{t}.npz')
+            rms_path = os.path.join(subject_rms_data_path,f's{subject}_d{d}_t{t}.npz')
+
+            dt_sep_dict = np.load(dt_path)
+            rms_dict = {}
+            keys = dt_sep_dict.keys()
+
+            t = time.time()
+            for key in keys:
+                emg = dt_sep_dict[key]
+                emg_rect = rmsRect(x=emg, win_size_ms=win_size_ms, fs=2000)
+                if subsample_enabled == True:
+                    emg_sub = subsample(x=emg_rect, init_freq=2000, new_freq=100)
+                    rms_dict[key] = np.copy(emg_sub)
+                else:
+                    rms_dict[key] = np.copy(emg_rect)
+
+            np.savez(rms_path, **rms_dict)
+            print(f"{time.time() - t:.2f}")
+            t = time.time()
+
+
+
+
+
 
 """    -- MAIN --    """
+win_size_ms = 200
+db = 6
 
 if __name__ == "__main__":
-    try:
-        db = int(sys.argv[1])
-        fs = int(sys.argv[2])
-        win_size_ms = int(sys.argv[3])
-    except IndexError:
-        # Default values
-        db = 2
-        fs = 2000
-        win_size_ms = 50
 
-    if db == 1:
-        path = PROCESSED_DATA_PATH_DB1
-    elif db == 2:
-        path = RMS_DATA_PATH_DB2
-    elif db == 5:
-        path = PROCESSED_DATA_PATH_DB5
+    if db == 6:
+        for sub in [1,2,3,4,5,6,7,8,9,10]:
+            apply_rms_rect_db6(subject=sub, win_size_ms=win_size_ms, subsample_enabled=True)
     else:
-        exit(0)
+        if db == 1:
+            path = PROCESSED_DATA_PATH_DB1
+            fs = 100
+        elif db == 2:
+            path = RMS_DATA_PATH_DB2
+            fs= 2000
+        elif db == 5:
+            path = PROCESSED_DATA_PATH_DB5
+            fs = 200
 
-    apply_rms_rect(db=db, db_dir_path=path, fs=fs, win_size_ms=win_size_ms)
+        apply_rms_rect(db=db, db_dir_path=path, fs=fs, win_size_ms=win_size_ms)
