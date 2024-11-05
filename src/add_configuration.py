@@ -9,8 +9,8 @@ preprocess_config = {
     "SUBSAMPLE" :   {"enable" : False,
                      "params" : None},#{"init_freq" : 2000, "new_freq" : 100}},
 
-    "DISCARD"   :   {"enable" : False ,
-                     "params" : {"seconds_to_keep" : 3.5, "fs" : 100}},
+    "DISCARD"   :   {"enable" : True ,
+                     "params" : {"seconds_to_keep" : 1.5, "fs" : 100}},
 
     "LOWPASS"   :   {"enable" : True,
                      "params" : {"fc": 1, "fs": 100, "N": 1}},
@@ -18,7 +18,7 @@ preprocess_config = {
     "MIN-MAX"   :   {"enable" : True,
                      "params" : {}},
 
-    "M-LAW"     :   {"enable" : True,
+    "M-LAW"     :   {"enable" : False,
                      "params" : {"mu":2048, "scaling_type":"all"}},
 
     "SEGMENT"   :   {"enable" : True ,
@@ -73,4 +73,4 @@ def save_config(mode:str, filename:str):
 # mode : either "preproc" or "aug"
 if __name__ == "__main__":
     mode = "preproc"
-    save_config(mode, "db2_no_discard_lpf_muLaw_min_max")
+    save_config(mode, "db2_discard_1.5_lpf_minmax_no_muLaw")
