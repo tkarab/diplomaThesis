@@ -10,6 +10,7 @@ SEPARATED_DATA_PATH = os.path.join(DATA_PATH ,'Separated')
 PROCESSED_DATA_PATH_DB1 = ROOT + r'\Δεδομένα\processed\db1'
 PROCESSED_DATA_PATH_DB2 = ROOT + r'\Δεδομένα\processed\db2'
 PROCESSED_DATA_PATH_DB5 = ROOT + r'\Δεδομένα\processed\db5'
+PROCESSED_DATA_PATH_DB6 = ROOT + r'\Δεδομένα\processed\db6'
 
 RMS_DATA_PATH_DB1 = os.path.join(PROCESSED_DATA_PATH_DB1,'rms')
 RMS_DATA_PATH_DB2 = os.path.join(PROCESSED_DATA_PATH_DB2,'rms')
