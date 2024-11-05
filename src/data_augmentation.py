@@ -1,13 +1,15 @@
 import numpy as np
 import os
-import constants
-import helper_functions as h
 import random
-import plot_functions
 import time
 from tqdm import tqdm
 
-processed_data_path = os.path.join(constants.PROCESSED_DATA_PATH_DB2, 'db2_processed.npz')
+from plot_functions import *
+from constants import *
+from helper_functions import *
+
+
+processed_data_path = os.path.join(PROCESSED_DATA_PATH_DB2, 'db2_processed.npz')
 
 """
 DESCRIPTION
@@ -76,6 +78,44 @@ def apply_augmentation(data, config_dict:dict, final_sample_subfix, total_subjec
     return data_aug
 
 
+"""
+PARAMETERS
+    - experiment_type: "inter_subject" or "intra_subject"
+    - total: number of (day,time) combinations in "intra_subject" experiment, 
+      number of subjects in "inter_subject" experiment
+
+"""
+def apply_augmentation_db6(data, experiment_type, config_dict:dict, final_sample_subfix, total):
+    print("Performing Data Augmentation...")
+    data_aug = {key: None for key in data}
+    ops = config_dict['ops']
+    params = config_dict['params']
+
+    progress_bar = tqdm(total=total, desc="Augmentation", unit=" reps")
+    completed = 0
+
+    for key,emg in data.items():
+
+        for op in [op for op in augmentation_operations if ops[op] == True]:
+            emg = augmentation_funcs[op](emg, **params[op])
+        data_aug[key] = np.copy(emg)
+
+        if experiment_type == "intra_subject":
+            if key[3:9] == final_sample_subfix:
+                completed += 1
+                progress_bar.set_postfix(day_time=f'{key[-6:]}')
+                progress_bar.update(1)  # Update progress bar by 1
+        elif experiment_type == "inter_subject":
+            if key[3:] == final_sample_subfix:
+                completed += 1
+                progress_bar.set_postfix(subject=f'{key[:3]}')
+                progress_bar.update(1)  # Update progress bar by 1
+
+    progress_bar.close()
+    print("\n")
+
+    return data_aug
+
 augmentation_operations = ["AWGN", "FLIP"]
 augmentation_funcs = {
     "AWGN" : addGaussianNoise,
@@ -84,8 +124,8 @@ augmentation_funcs = {
 
 # Main
 if __name__ == "__main__" :
-    config_dict = h.get_config_from_json_file('aug', 'db2_awgn')
-    apply_augmentation(np.load(os.path.join(constants.PROCESSED_DATA_PATH_DB2,'db2_processed.npz')), config_dict)
+    config_dict = get_config_from_json_file('aug', 'db2_awgn')
+    apply_augmentation(np.load(os.path.join(PROCESSED_DATA_PATH_DB2,'db2_processed.npz')), config_dict)
 
 
 

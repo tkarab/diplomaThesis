@@ -165,6 +165,57 @@ def apply_preprocessing(data_path, key_list, final_sample_subfix, total_subjects
 
     return data_proc, data_seg
 
+"""
+PARAMETERS
+    - experiment_type: "inter_subject" or "intra_subject"
+    - total: number of (day,time) combinations in "intra_subject" experiment, 
+      number of subjects in "inter_subject" experiment
+    
+"""
+def apply_preprocessing_db6(data, experiment_type, final_sample_subfix, total, config_dict:dict):
+    print("Data processing...")
+    #print("...loading the data...")
+    data_proc = {key:None for key in data}
+    data_seg = {key:None for key in data}
+
+    config_operations = config_dict['ops'].copy()
+    config_params = config_dict['params'].copy()
+
+    if config_operations["LOWPASS"] == True :
+        b, a = get_filter_coeffs(**config_params["LOWPASS"])
+        config_params["LOWPASS"] = {"b" : b, "a" : a}
+
+    operations_params = [(preprocess_funcs[op], config_params[op]) for op in preprocess_operations if
+                         config_operations[op] == True and op != "SEGMENT"]
+
+    progress_bar = tqdm(total=total, desc="Preprocessing", unit=" reps")
+    completed = 0
+
+    for key, emg in data.items():
+        for func, params in operations_params:
+            emg = func(emg, **params)
+
+        data_proc[key] = np.expand_dims(emg, -1)
+
+        if experiment_type == "intra_subject":
+            if key[3:9] == final_sample_subfix:
+                completed += 1
+                progress_bar.set_postfix(day_time=f'{key[-6:]}')
+                progress_bar.update(1)  # Update progress bar by 1
+        elif experiment_type == "inter_subject":
+            if key[3:] == final_sample_subfix:
+                completed += 1
+                progress_bar.set_postfix(subject=f'{key[:3]}')
+                progress_bar.update(1)  # Update progress bar by 1
+
+    if config_operations["SEGMENT"] == True:
+        for key, emg in data_proc.items():
+            data_seg[key] = get_segmentation_indices(emg, **config_params["SEGMENT"])
+    progress_bar.close()
+
+    return data_proc, data_seg
+
+
 preprocess_operations = ["SUBSAMPLE", "DISCARD", "LOWPASS", "M-LAW", "MIN-MAX", "SEGMENT"]
 
 preprocess_funcs = {
