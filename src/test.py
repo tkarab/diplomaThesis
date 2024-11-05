@@ -4,18 +4,20 @@ import numpy as np
 import os
 import sys
 import random
-import fsl_functions
-from custom_models import *
-from model_assembly import *
+# import fsl_functions
+# from custom_models import *
+# from model_assembly import *
 import constants
 import time
 from helper_functions import *
 from plot_functions import *
 from preprocessing import *
 from matplotlib import pyplot as plt
-import tensorflow as tf
+# import tensorflow as tf
 
 from custom_callbacks import *
+
+from task_generator_ex4 import *
 
 
 root = r'C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results\Experiment 1\5_way_5_shot'
@@ -79,23 +81,42 @@ subdir = "test_discard"
 #     plot_train_results(input_file=filename, label=neuron_number, title="dense layers added", metric="val_loss")
 #
 # print()
+#
+# inp = (15,12,1)
+# cnn_backbone =  AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp)
+# siamnetTest = SiameseNetwork(cnn_backbone=cnn_backbone, inp_shape=inp, f=l2_dist, dense_layers=get_dense_layers([]))
+# x = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
+# y = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
+#
+# out = siamnetTest([x,y])
+#
+# filepath = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results"
+# modelname = r"\siamNet"
+#
+# siamnetTest.save(filepath=filepath+modelname)
+#
+# siamnetLoaded = load_siamNet(filepath, modelname)
+#
+# callback = SaveSiamNetCallback(metric = "val_accuracy")
 
-inp = (15,12,1)
-cnn_backbone =  AtzoriNetDB2_embedding_only_extra_layers_added(input_shape=inp)
-siamnetTest = SiameseNetwork(cnn_backbone=cnn_backbone, inp_shape=inp, f=l2_dist, dense_layers=get_dense_layers([]))
-x = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
-y = tf.random.uniform(shape=(5,)+inp, minval=0, maxval=1)
+subject = 1
+val_dt = (random.choice([1,2,3,4,5]),random.choice([1,2]))
+rms = 100
+way = 5
+shot = 3
 
-out = siamnetTest([x,y])
 
-filepath = r"C:\Users\ΤΑΣΟΣ\Desktop\Σχολή\Διπλωματική\Δεδομένα\Results"
-modelname = r"\siamNet"
+task_generator = TaskGeneratorEx4IntraSubject(subject,
+                                              val_dt, way, shot,
+                                              network_type="siamNet",
+                                              preprocessing_config=get_config_from_json_file('preproc', "db2_discard_1.5_lpf_minmax_no_muLaw"),
+                                              aug_enabled=True,
+                                              aug_config=get_config_from_json_file('aug', 'db2_awgn_snr25'),
+                                              task_type = "intra_session",
+                                              mode="train",
+                                              rms_win_size=rms,
+                                              batch_size=4)
 
-siamnetTest.save(filepath=filepath+modelname)
-
-siamnetLoaded = load_siamNet(filepath, modelname)
-
-callback = SaveSiamNetCallback(metric = "val_accuracy")
-
+[x,y], label = task_generator[0]
 print()
 

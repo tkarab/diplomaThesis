@@ -1,7 +1,6 @@
 import json
 import os
 import time
-from typing_extensions import deprecated
 
 from tqdm import tqdm
 
@@ -17,6 +16,7 @@ from task_generator import TaskGenerator
 import numpy as np
 
 from model_assembly import *
+from plot_functions import *
 from helper_functions import *
 from constants import *
 from custom_models import *
@@ -264,9 +264,6 @@ elif ex == "3":
                                 data_intake='generate', database=db, preprocessing_config=preproc_config,
                                 aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
                                 batches=validation_steps)
-elif ex == "4":
-    #TODO: fix for experiment 4
-    pass
 
 
 # Getting 1 output from train loader to test dimensions etc
