@@ -67,6 +67,9 @@ DESCRIPTION
 def getKey(s,g,r):
     return f"s{s:02d}g{g:02d}r{r:02d}"
 
+def getKeyWithDayTime(s,g,r,d,t):
+    return f"s{s:02d}g{g:02d}r{r:02d}d{d:02d}t{t:02d}"
+
 """
 DESCRIPTION
     Returns the name of the directory containing data of a certain database (db2 mainly) which are
