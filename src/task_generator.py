@@ -294,7 +294,7 @@ class TaskGenerator(utils.Sequence):
                 elif self.experiment == '2a':
                     self.task_generator = self.task_generator_ex2a
                 elif self.experiment == '2b':
-                    self.task_generator = None #TODO
+                    self.task_generator = self.task_generator_ex2b
                 elif self.experiment == '3':
                     self.task_generator = None #TODO
 
@@ -411,6 +411,49 @@ class TaskGenerator(utils.Sequence):
 
         return support_batch, query_batch, labels_batch
 
+    def task_generator_ex2b(self, index):
+        support_batch = np.zeros(shape=(self.batch_size, self.way, self.shot, self.getWindowSize(), self.channels, 1))
+        query_batch = np.zeros(shape=(self.batch_size, 1, self.getWindowSize(), self.channels, 1))
+        labels_batch = np.zeros((self.batch_size, self.way))
+
+        for batch_number in range(self.batch_size):
+            support_set = []
+            query_set = []
+
+            task_gestures = random.sample(self.g_domain, self.way)
+            query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
+            # Pick a random subject (of the available ones) for each of th N gestures
+            subjects = random.sample(self.s_domain, self.way)
+            shot_list = [self.shot] * self.way
+            shot_list[query_gesture_index] += 1
+
+            # Since each of the N gestures is taken from the same subject, the only variant in the (s,g,r)
+            # combination of each key is the 'r'
+            reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
+            query_rep = reps[query_gesture_index].pop()
+            query_sub = subjects[query_gesture_index]
+
+            for i, [g,s] in enumerate(zip(task_gestures,subjects)):
+                sgr_list = [(s,rep,g) for rep in reps[i]]
+                category_keys = self.getKeys(*sgr_list)
+                gest_samples = []
+
+                for key in category_keys:
+                    gest_samples.append(self.get_segment_of_semg(key, random.choice(self.segments[key])))
+
+                support_set.append(gest_samples)
+
+
+            query_key = getKey(s = query_sub, g=chosen_query_gest, r=query_rep)
+            query_set.append(self.get_segment_of_semg(key=query_key, segment_start=random.choice(self.segments[key])))
+
+            support_batch[batch_number] = np.array(support_set)
+            query_batch[batch_number] = np.array(query_set)
+            labels_batch[batch_number] = utils.to_categorical(y=query_gesture_index, num_classes=self.way)
+
+        return support_batch, query_batch, labels_batch
+
+
     """
         Unlike generate_task_keys and generate_task_keys_2a it returns the data instead of their keys
     """
@@ -503,6 +546,7 @@ class TaskGenerator(utils.Sequence):
             labels_batch.append(label[0])
 
         return np.array(support_set_batch), np.array(query_batch), np.array(labels_batch)
+
 
 
 
