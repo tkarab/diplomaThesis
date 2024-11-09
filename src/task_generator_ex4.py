@@ -117,10 +117,6 @@ class TaskGeneratorEx4IntraSubject(utils.Sequence):
 
         return
 
-
-    def task_generator_siamNet(self, index):
-
-        return
     def task_generator_protoNet(self, index):
         support_batch = np.zeros((self.batch_size, self.way, self.shot, self.segment_win_size, self.channels, 1))
         query_batch = np.zeros((self.batch_size, 1, self.segment_win_size, self.channels, 1))
