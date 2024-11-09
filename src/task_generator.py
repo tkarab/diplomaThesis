@@ -138,10 +138,10 @@ class TaskGenerator(utils.Sequence):
         return
 
     def __getitem__(self, index):
-        if self.network_type == "protoNet":
+        if self.data_intake == "csv":
             all_keys = self.task_generator(index)
             support_batch, query_batch, labels_batch = self.get_task_data_based_on_keys(*all_keys)
-        elif self.network_type == "siamNet":
+        elif self.data_intake == "generate":
             support_batch, query_batch, labels_batch = self.task_generator(index)
 
         return [support_batch, query_batch], labels_batch
@@ -289,10 +289,15 @@ class TaskGenerator(utils.Sequence):
                 self.load_tasks_from_file()
                 self.task_generator = self.get_premade_keys
             elif self.data_intake == "generate":
-                if self.experiment == '2a':
-                    self.task_generator = self.generate_task_keys_2a
-                elif self.experiment in ['1','2b','3']:
-                    self.task_generator = self.generate_task_keys
+                if self.experiment == '1':
+                    self.task_generator = self.task_generator_ex1
+                elif self.experiment == '2a':
+                    self.task_generator = self.task_generator_ex2a
+                elif self.experiment == '2b':
+                    self.task_generator = None #TODO
+                elif self.experiment == '3':
+                    self.task_generator = None #TODO
+
         elif self.network_type == "siamNet":
             if self.experiment == "2a":
                 self.task_generator = self.generate_siamNet_task2a
@@ -328,17 +333,14 @@ class TaskGenerator(utils.Sequence):
     def set_aug_enabled(self,aug_enabled):
         self.aug_enabled = aug_enabled
 
-    #TODO - Return the actual data instead of their keys
-    def generate_task_keys(self, index):
-        support_set_keys = []
-        query_keys = []
-        query_gest_indices = []
-        support_segments_starting_indices = []
-        query_segments_starting_indices = []
+    def task_generator_ex1(self, index):
+        support_batch = np.zeros(shape=(self.batch_size, self.way, self.shot, self.getWindowSize(), self.channels, 1))
+        query_batch = np.zeros(shape=(self.batch_size, 1, self.getWindowSize(), self.channels, 1))
+        labels_batch = np.zeros((self.batch_size, self.way))
 
-        for i in range(self.batch_size):
+        for batch_number in range(self.batch_size):
             support_set = []
-            start_indices = []
+            query_set = []
 
             # Select N random gestures
             task_gestures = random.sample(self.g_domain, self.way)
@@ -348,34 +350,35 @@ class TaskGenerator(utils.Sequence):
             shot_list[query_gesture_index] += 1
 
             support_pairs = [random.sample(self.s_r_pairs, shot_number) for shot_number in shot_list]
+            s_r_query = support_pairs[query_gesture_index].pop()
+
             for i,g in enumerate(task_gestures):
+                gest_samples = []
                 sgr_list = [pair + (g,) for pair in support_pairs[i]]
                 category_keys = self.getKeys(*sgr_list)
-                support_set.append(category_keys)
-                start_indices.append([random.choice(self.segments[key]) for key in category_keys])
 
-            query_key = support_set[query_gesture_index].pop()
-            query_seg_start_index = start_indices[query_gesture_index].pop()
+                for key in category_keys:
+                    gest_samples.append(self.get_segment_of_semg(key, segment_start=random.choice(self.segments[key])))
 
-            support_set_keys.append(support_set)
-            support_segments_starting_indices.append(start_indices)
-            query_keys.append(query_key)
-            query_segments_starting_indices.append(query_seg_start_index)
-            query_gest_indices.append(query_gesture_index)
+                support_set.append(gest_samples)
 
-        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
+            query_key = getKey(s=s_r_query[0], g=chosen_query_gest, r=s_r_query[1])
+            query_set.append(self.get_segment_of_semg(key = query_key, segment_start=random.choice(self.segments[query_key])))
 
-    #TODO - Return the actual data instead of their keys
-    def generate_task_keys_2a(self, index):
-        support_set_keys = []
-        query_keys = []
-        query_gest_indices = []
-        support_segments_starting_indices = []
-        query_segments_starting_indices = []
+            support_batch[batch_number] = np.array(support_set)
+            query_batch[batch_number] = np.array(query_set)
+            labels_batch[batch_number] = utils.to_categorical(y=query_gesture_index, num_classes=self.way)
 
-        for i in range(self.batch_size):
+        return support_batch, query_batch, labels_batch
+
+    def task_generator_ex2a(self, index):
+        support_batch = np.zeros(shape=(self.batch_size, self.way, self.shot, self.getWindowSize(), self.channels, 1))
+        query_batch = np.zeros(shape=(self.batch_size, 1, self.getWindowSize(), self.channels, 1))
+        labels_batch = np.zeros((self.batch_size, self.way))
+
+        for batch_number in range(self.batch_size):
             support_set = []
-            start_indices = []
+            query_set = []
 
             task_gestures = random.sample(self.g_domain, self.way)
             query_gesture_index, chosen_query_gest = random.choice(list(enumerate(task_gestures)))
@@ -386,22 +389,27 @@ class TaskGenerator(utils.Sequence):
             # Since each of the N gestures is taken from the same subject, the only variant in the (s,g,r)
             # combination of each key is the 'r'
             reps = [random.sample(self.r_domain, shot_number) for shot_number in shot_list]
+            query_rep = reps[query_gesture_index].pop()
+
             for i,g in enumerate(task_gestures):
                 sgr_list = [(chosen_subject,rep,g) for rep in reps[i]]
                 category_keys = self.getKeys(*sgr_list)
-                support_set.append(category_keys)
-                start_indices.append([random.choice(self.segments[key]) for key in category_keys])
+                gest_samples = []
 
-            query_key = support_set[query_gesture_index].pop()
-            query_seg_start_index = start_indices[query_gesture_index].pop()
+                for key in category_keys:
+                    gest_samples.append(self.get_segment_of_semg(key, random.choice(self.segments[key])))
 
-            support_set_keys.append(support_set)
-            support_segments_starting_indices.append(start_indices)
-            query_keys.append(query_key)
-            query_segments_starting_indices.append(query_seg_start_index)
-            query_gest_indices.append(query_gesture_index)
+                support_set.append(gest_samples)
 
-        return support_set_keys, support_segments_starting_indices, query_keys, query_segments_starting_indices, query_gest_indices
+
+            query_key = getKey(s = chosen_subject, g=chosen_query_gest, r=query_rep)
+            query_set.append(self.get_segment_of_semg(key=query_key, segment_start=random.choice(self.segments[key])))
+
+            support_batch[batch_number] = np.array(support_set)
+            query_batch[batch_number] = np.array(query_set)
+            labels_batch[batch_number] = utils.to_categorical(y=query_gesture_index, num_classes=self.way)
+
+        return support_batch, query_batch, labels_batch
 
     """
         Unlike generate_task_keys and generate_task_keys_2a it returns the data instead of their keys
