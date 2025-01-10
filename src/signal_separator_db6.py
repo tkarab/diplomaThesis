@@ -26,9 +26,9 @@ print(f"subject {sub}")
 
 start_time = time.time()
 
-for sub in []:
-    for day in []:
-        for t in []:
+for sub in [2]:
+    for day in [2]:
+        for t in [2]:
             print(f'\nD: {day}, T:{t}')
 
             signal_dict = {}
@@ -56,10 +56,10 @@ for sub in []:
                         current_signal = np.vstack((current_signal, emg[i,channels]))
 
                 elif (current_gesture == 0 and previous_gesture != 0) or (i == L - 1 and current_gesture != 0):
-                    name = getKey(sub, gesture_number, rerepetition[i - 1].item())
-                    print(name, f"({time.time() - start_time:.2f}s)")
+                    key = getKey(sub, gesture_number, rerepetition[i - 1].item())
+                    print(key, f"({time.time() - start_time:.2f}s)")
                     start_time = time.time()
-                    signal_dict[name] = np.copy(current_signal)
+                    signal_dict[key] = np.copy(current_signal)
                     current_signal = np.array([]).astype(np.float32)
 
                 previous_gesture = current_gesture

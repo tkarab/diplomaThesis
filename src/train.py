@@ -214,11 +214,45 @@ preproc_config = get_config_from_json_file('preproc', "db2_no_discard_lpf_muLaw_
 aug_enabled = True
 aug_config = get_config_from_json_file('aug', 'db2_awgn_snr25')
 data_intake = 'generate'
-# network_type = "protoNet"
-network_type = "siamNet"
+network_type = "protoNet"
 
+if ex == "1":
+    train_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train',
+                                 data_intake=data_intake, database=db, preprocessing_config=preproc_config,
+                                 aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms,
+                                 batch_size=batch_size, batches=training_steps)
+    val_loader = TaskGenerator(network_type='protoNet', experiment=ex, way=N, shot=k, mode='test',
+                                data_intake='generate', database=db, preprocessing_config=preproc_config,
+                                aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
+                                batches=validation_steps)
 
-data_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train', data_intake=data_intake, database=db, preprocessing_config=preproc_config, aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms, batch_size=batch_size, batches=training_steps)
+elif ex.startswith("2"):
+    train_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train',
+                                 data_intake=data_intake, database=db, preprocessing_config=preproc_config,
+                                 aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms,
+                                 batch_size=batch_size, batches=training_steps)
+    val_loader = TaskGenerator(network_type='protoNet', experiment="2a", way=N, shot=k, mode='val',
+                                data_intake='generate', database=db, preprocessing_config=preproc_config,
+                                aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
+                                batches=validation_steps)
+    test_loader = TaskGenerator(network_type='protoNet', experiment="2a", way=N, shot=k, mode='test',
+                                data_intake='generate', database=db, preprocessing_config=preproc_config,
+                                aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
+                                batches=validation_steps)
+
+elif ex == "3":
+    train_loader = TaskGenerator(network_type=network_type, experiment=ex, way=N, shot=k, mode='train',
+                                 data_intake=data_intake, database=db, preprocessing_config=preproc_config,
+                                 aug_enabled=aug_enabled, aug_config=aug_config, rms_win_size=rms,
+                                 batch_size=batch_size, batches=training_steps)
+    val_loader = TaskGenerator(network_type='protoNet', experiment=ex, way=N, shot=k, mode='val',
+                               data_intake='generate', database=db, preprocessing_config=preproc_config,
+                               aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
+                               batches=validation_steps)
+    test_loader = TaskGenerator(network_type='protoNet', experiment=ex, way=N, shot=k, mode='test',
+                                data_intake='generate', database=db, preprocessing_config=preproc_config,
+                                aug_enabled=False, aug_config=aug_config, rms_win_size=rms, batch_size=1,
+                                batches=validation_steps)
 
 # Getting 1 output from train loader to test dimensions etc
 [x,y], label = data_loader[0]
@@ -242,7 +276,7 @@ trainingInfoCallback = TrainingInfoCallback(resultsPath, model, batch_size, mode
 
 # LR Adjustment
 reduction_factor = 0.5
-patience = 2
+patience = 15
 cooldown_patience = 2
 min_lr = 1e-4
 min_delta = 0.001
@@ -254,26 +288,17 @@ early_stopping_mode_on = EARLY_STOPPING_ENABLED and (not LR_SCHEDULER_ENABLED)
 
 for epoch_num in range(starting_epoch, starting_epoch+epochs):
     # training
-    data_loader.setMode('train')
-    data_loader.set_iterations_per_epoch(training_steps)
-    data_loader.set_batch_size(batch_size)
-    data_loader.set_aug_enabled(aug_enabled)
+    # data_loader.setMode('train')
+    # data_loader.set_iterations_per_epoch(training_steps)
+    # data_loader.set_batch_size(batch_size)
+    # data_loader.set_aug_enabled(aug_enabled)
     print(f"\nEpoch {epoch_num+1:2d}/{starting_epoch+epochs}")
 
     # train for 1 epoch
-    history = model.fit(data_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
+    history = model.fit(train_loader, epochs=1, shuffle=False, callbacks=[iterationLoggingCallback])
 
-    # validation
-    if ex == '1':
-        data_loader.setMode('test')
-    else:
-        data_loader.setMode('val')
-
-    data_loader.set_iterations_per_epoch(validation_steps)
-    data_loader.set_batch_size(1)
-    data_loader.set_aug_enabled(False)
     print("Validation")
-    val_loss, val_accuracy = model.evaluate(data_loader)
+    val_loss, val_accuracy = model.evaluate(val_loader)
     logs = {"val_accuracy": val_accuracy, "val_loss": val_loss}
 
     if SAVE_MODEL == True:

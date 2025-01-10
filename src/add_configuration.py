@@ -10,7 +10,7 @@ preprocess_config = {
                      "params" : None},#{"init_freq" : 2000, "new_freq" : 100}},
 
     "DISCARD"   :   {"enable" : True ,
-                     "params" : {"seconds_to_keep" : 1.5, "fs" : 100}},
+                     "params" : {"seconds_to_keep" : 2.5, "fs" : 100}},
 
     "LOWPASS"   :   {"enable" : True,
                      "params" : {"fc": 1, "fs": 100, "N": 1}},
@@ -73,4 +73,4 @@ def save_config(mode:str, filename:str):
 # mode : either "preproc" or "aug"
 if __name__ == "__main__":
     mode = "preproc"
-    save_config(mode, "db2_discard_1.5_lpf_minmax_no_muLaw")
+    save_config(mode, "db2_discard_2.5_lpf_minmax_no_muLaw")

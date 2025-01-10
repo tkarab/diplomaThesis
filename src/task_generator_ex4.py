@@ -93,7 +93,7 @@ class TaskGeneratorEx4IntraSubject(utils.Sequence):
                     key_dt = key + f"d{d:02d}t{t:02d}"
                     self.data_raw[key_dt] = np.copy(value)
 
-            progress_bar.set_postfix(day_time=f'd{d:2d}t{t:2d}')
+            progress_bar.set_postfix(day_time=f'd{d:02d}t{t:02d}')
             progress_bar.update(1)  # Update progress bar by 1
         progress_bar.close()
 
