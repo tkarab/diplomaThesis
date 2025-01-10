@@ -47,8 +47,8 @@ metric = "val_accuracy"
 
 selected_files = select_files(root)
 
-# mode = "FORMAT_RESULTS"
-mode = "PLOT_RESULTS"
+mode = "FORMAT_RESULTS"
+# mode = "PLOT_RESULTS"
 
 plot_mode = ""
 
